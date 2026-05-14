@@ -18,6 +18,8 @@ func Load() error {
 	}
 
 	// 设置配置默认值或检查必填配置
+
+	// log
 	viper.SetDefault("log.path", "log/")
 	viper.SetDefault("log.level", "INFO")
 	viper.SetDefault("log.max_day", 7)
@@ -27,11 +29,13 @@ func Load() error {
 	}
 
 	// llm
+	viper.SetDefault("llm.max_tokens", 4096)
+	viper.SetDefault("llm.thinking", true)
 	if viper.GetString("llm.base_url") == "" {
 		return fmt.Errorf("配置文件中 llm.base_url 为空")
 	}
-	if viper.GetString("llm.model_id") == "" {
-		return fmt.Errorf("配置文件中 llm.model_id 为空")
+	if viper.GetString("llm.model") == "" {
+		return fmt.Errorf("配置文件中 llm.model 为空")
 	}
 	if viper.GetString("llm.api_key") == "" {
 		return fmt.Errorf("配置文件或环境变量中 llm.api_key 为空")
@@ -39,17 +43,6 @@ func Load() error {
 
 	viper.WatchConfig()
 	return nil
-}
-
-// ------ llm --------
-func GetAiBaseUrl() string {
-	return viper.GetString("llm.base_url")
-}
-func GetAiModelID() string {
-	return viper.GetString("llm.model_id")
-}
-func GetAiApiKey() string {
-	return viper.GetString("llm.api_key")
 }
 
 // ------ log --------
@@ -61,4 +54,24 @@ func GetLogLevel() string {
 }
 func GetLogMaxDay() int {
 	return viper.GetInt("log.max_day")
+}
+
+// ------ llm --------
+func GetLLMBaseUrl() string {
+	return viper.GetString("llm.base_url")
+}
+func GetLLMModel() string {
+	return viper.GetString("llm.model")
+}
+func GetLLMApiKey() string {
+	return viper.GetString("llm.api_key")
+}
+func GetLLMMaxTokens() int {
+	return viper.GetInt("llm.max_tokens")
+}
+func GetLLMThinking() string {
+	if viper.GetBool("llm.thinking") {
+		return "enabled"
+	}
+	return "disabled"
 }

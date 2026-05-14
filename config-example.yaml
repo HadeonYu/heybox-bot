@@ -5,5 +5,7 @@ log:
 
 llm:
   base_url: "填入你的base url"
-  model_id: "填入你的模型"
+  model: "填入你的模型"
+  max_tokens: 4096
+  thinking: false
   # api_key: 安全考虑，这项配置应该保存在环境变量中，而不是明文存放在配置文件里
