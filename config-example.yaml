@@ -1,0 +1,9 @@
+log:
+  path: "log/"  # 日志路径，不建议更改
+  level: "INFO"  # DEBUG, INFO, WARN, ERROR, FATAL
+  max_day: 30  # 日志文件保留的天数
+
+llm:
+  base_url: "填入你的base url"
+  model_id: "填入你的模型"
+  # api_key: 安全考虑，这项配置应该保存在环境变量中，而不是明文存放在配置文件里
