@@ -263,7 +263,13 @@ func writeReplyField(b *strings.Builder, name, value string) {
 }
 
 func shouldIncludeTargetComment(root, target *api.PostComment) bool {
-	return target != nil && root.CommentID != target.CommentID
+	if target == nil {
+		return false
+	}
+	if root == nil {
+		return true
+	}
+	return root.CommentID != target.CommentID
 }
 
 func collectReplyImageURLs(result MessageArrangeResult) []string {

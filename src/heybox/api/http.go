@@ -149,6 +149,9 @@ func request(method string, apiPath string, heyboxID string, values ...map[strin
 		return nil, fmt.Errorf("小黑盒 API 请求失败: %s", resp.Status)
 	}
 	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
 	// logger.Debug("resp: %+v", string(bodyBytes))
 	var result response
 	if err := json.NewDecoder(bytes.NewReader(bodyBytes)).Decode(&result); err != nil {
