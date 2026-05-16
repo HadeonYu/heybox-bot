@@ -3,7 +3,11 @@ package llm
 import (
 	"fmt"
 	"heybox-bot/config"
+	"heybox-bot/logger"
+	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -22,6 +26,8 @@ const (
 	llmTestImagePrompt  = "回答必须以“我看到了这张图片，内容是...”开头"
 	llmTestImageContent = "你看到了什么？"
 	llmTestImageURL     = "https://ark-project.tos-cn-beijing.volces.com/doc_image/ark_demo_img_1.png"
+
+	systemPromptPath = "./system_prompt.md"
 )
 
 type ChatCompletionResponse struct {
@@ -114,6 +120,10 @@ func LLMTest() {
 // chat 使用主聊天模型处理用户文本和可选图片。
 func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
 	options := chatOptions()
+	systemPrompt, err := currentSystemPrompt()
+	if err != nil {
+		return nil, err
+	}
 
 	if len(imageURLs) == 0 {
 		return callChatLLM(systemPrompt, content, options)
@@ -221,8 +231,67 @@ func printUsage(resp *ChatCompletionResponse) {
 	fmt.Printf("token 消耗: prompt=%d, completion=%d, total=%d\n", resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Usage.TotalTokens)
 }
 
-var systemPrompt = `你是一个社区机器人，在社区里你必须发言简短，因为没人喜欢长篇大论。你必须遵守国家法律，坚守道德底线。你可以玩梗，形象是风趣幽默`
+var systemPromptCache struct {
+	sync.RWMutex
+	content string
+	modTime time.Time
+	size    int64
+	loaded  bool
+}
 
-var imageDescriptionSystemPrompt = `你负责把图片转换成简短、准确的文字描述。只描述图片中和用户讨论可能相关的信息，不要编造。`
+func currentSystemPrompt() (string, error) {
+	info, err := os.Stat(systemPromptPath)
+	if err != nil {
+		return cachedSystemPromptOrError(fmt.Errorf("读取系统提示词文件状态失败: %w", err))
+	}
+
+	systemPromptCache.RLock()
+	loaded := systemPromptCache.loaded
+	content := systemPromptCache.content
+	unchanged := loaded && systemPromptCache.modTime.Equal(info.ModTime()) && systemPromptCache.size == info.Size()
+	systemPromptCache.RUnlock()
+	if unchanged {
+		return content, nil
+	}
+
+	return reloadSystemPrompt(info)
+}
+
+func reloadSystemPrompt(info os.FileInfo) (string, error) {
+	systemPromptCache.Lock()
+	defer systemPromptCache.Unlock()
+
+	if systemPromptCache.loaded && systemPromptCache.modTime.Equal(info.ModTime()) && systemPromptCache.size == info.Size() {
+		return systemPromptCache.content, nil
+	}
+
+	data, err := os.ReadFile(systemPromptPath)
+	if err != nil {
+		return cachedSystemPromptOrErrorLocked(fmt.Errorf("读取系统提示词文件失败: %w", err))
+	}
+
+	systemPromptCache.content = string(data)
+	systemPromptCache.modTime = info.ModTime()
+	systemPromptCache.size = info.Size()
+	systemPromptCache.loaded = true
+	return systemPromptCache.content, nil
+}
+
+func cachedSystemPromptOrError(err error) (string, error) {
+	systemPromptCache.RLock()
+	defer systemPromptCache.RUnlock()
+	return cachedSystemPromptOrErrorLocked(err)
+}
+
+func cachedSystemPromptOrErrorLocked(err error) (string, error) {
+	if systemPromptCache.loaded {
+		logger.Warn("%v，继续使用上一版系统提示词", err)
+		return systemPromptCache.content, nil
+	}
+	return "", err
+}
+
+var imageDescriptionSystemPrompt = `你负责把图片转换成简短、准确的文字描述。只描述图片中和用户讨论可能相关的信息，不要编造。按照格式回复：` +
+	`图片1："图片1的内容"，图片2："图片2"的内容，……`
 
 var imageDescriptionUserPrompt = `请描述这些图片的主要内容，保留关键文字、人物、物体、场景和可能影响回复的信息。`
