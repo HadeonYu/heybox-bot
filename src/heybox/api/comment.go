@@ -109,3 +109,18 @@ func CreateComment(heyboxID string, linkID, rootID, replyID int64, text string) 
 
 	return result.CommentID, nil
 }
+
+// CommentPost 评论帖子并返回服务端生成的 commentid。
+func CommentPost(heyboxID string, linkID int64, text string) (int64, error) {
+	return CreateComment(heyboxID, linkID, -1, -1, text)
+}
+
+// CommentRoot 回复根评论并返回服务端生成的 commentid。
+func CommentRoot(heyboxID string, linkID, rootID int64, text string) (int64, error) {
+	return CreateComment(heyboxID, linkID, rootID, rootID, text)
+}
+
+// CommentReply 回复指定评论并返回服务端生成的 commentid。
+func CommentReply(heyboxID string, linkID, rootID, replyID int64, text string) (int64, error) {
+	return CreateComment(heyboxID, linkID, rootID, replyID, text)
+}
