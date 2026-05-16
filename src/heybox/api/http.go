@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"heybox-bot/logger"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -123,7 +122,6 @@ func request(method string, apiPath string, heyboxID string, values ...map[strin
 	}
 
 	reqURL := apiBaseURL + apiPath + "?" + q.Encode()
-	logger.Debug("request url: %v", reqURL)
 
 	req, err := http.NewRequest(method, reqURL, body)
 	if err != nil {

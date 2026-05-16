@@ -20,6 +20,7 @@ const (
 	legacySessionFile = "session.json"
 	metadataFile      = metadataDir + "/metadata.json"
 	metadataTimeFmt   = time.DateTime
+	frequencyWindow   = time.Minute
 )
 
 var (
@@ -28,9 +29,11 @@ var (
 )
 
 type metadata struct {
-	LastAtMessageTime string `json:"last_at_message_time"`
-	DeviceID          string `json:"device_id"`
-	XHHTokenID        string `json:"x_xhh_tokenid"`
+	LastAtMessageTime string             `json:"last_at_message_time"`
+	UserCallTimes     map[string][]int64 `json:"user_call_times"`
+	UserCallCounts    map[string]int     `json:"user_call_counts,omitempty"`
+	DeviceID          string             `json:"device_id"`
+	XHHTokenID        string             `json:"x_xhh_tokenid"`
 }
 
 // readMetadataFile 读取元数据文件并在需要时回退读取旧路径。
@@ -93,6 +96,20 @@ func loadMetadataLocked() (*metadata, error) {
 		md.LastAtMessageTime = formatMetadataTimestamp(float64(time.Now().Unix()))
 		changed = true
 	}
+	if md.UserCallTimes == nil {
+		md.UserCallTimes = make(map[string][]int64)
+		changed = true
+	}
+	if len(md.UserCallCounts) > 0 {
+		now := time.Now().Unix()
+		for userID, count := range md.UserCallCounts {
+			for range count {
+				md.UserCallTimes[userID] = append(md.UserCallTimes[userID], now)
+			}
+		}
+		md.UserCallCounts = nil
+		changed = true
+	}
 	if md.DeviceID == "" {
 		deviceID, err := randomDeviceID()
 		if err != nil {
@@ -126,6 +143,7 @@ func newDefaultMetadata() *metadata {
 	}
 	return &metadata{
 		LastAtMessageTime: formatMetadataTimestamp(float64(time.Now().Unix())),
+		UserCallTimes:     make(map[string][]int64),
 		DeviceID:          deviceID,
 		XHHTokenID:        mustNewXHHTokenID(),
 	}
@@ -263,4 +281,67 @@ func saveLastAtMessageTimestamp(timestamp float64) error {
 // saveLastAtMessageTime 保存上次成功处理 @ 消息的时间。
 func saveLastAtMessageTime(timestamp time.Time) error {
 	return saveLastAtMessageTimestamp(float64(timestamp.UnixNano()) / 1e9)
+}
+
+// recordUserCall 记录指定用户调用时间，并返回最近一分钟内的调用次数。
+func recordUserCall(userID string) (int, error) {
+	metadataMu.Lock()
+	defer metadataMu.Unlock()
+
+	if currentMetadata == nil {
+		md, err := loadMetadataLocked()
+		if err != nil {
+			return 0, err
+		}
+		currentMetadata = md
+	}
+	if currentMetadata.UserCallTimes == nil {
+		currentMetadata.UserCallTimes = make(map[string][]int64)
+	}
+
+	now := time.Now().Unix()
+	calls := pruneExpiredCallTimes(currentMetadata.UserCallTimes[userID], now)
+	calls = append(calls, now)
+	currentMetadata.UserCallTimes[userID] = calls
+	if err := saveMetadataLocked(currentMetadata); err != nil {
+		return 0, err
+	}
+	return len(calls), nil
+}
+
+// cleanupUserCallTimes 清理所有用户过期调用时间，列表为空后删除用户项。
+func cleanupUserCallTimes() error {
+	metadataMu.Lock()
+	defer metadataMu.Unlock()
+
+	if currentMetadata == nil {
+		md, err := loadMetadataLocked()
+		if err != nil {
+			return err
+		}
+		currentMetadata = md
+	}
+	if len(currentMetadata.UserCallTimes) == 0 {
+		return nil
+	}
+
+	now := time.Now().Unix()
+	for userID, calls := range currentMetadata.UserCallTimes {
+		calls = pruneExpiredCallTimes(calls, now)
+		if len(calls) == 0 {
+			delete(currentMetadata.UserCallTimes, userID)
+			continue
+		}
+		currentMetadata.UserCallTimes[userID] = calls
+	}
+	return saveMetadataLocked(currentMetadata)
+}
+
+func pruneExpiredCallTimes(calls []int64, now int64) []int64 {
+	cutoff := now - int64(frequencyWindow.Seconds())
+	start := 0
+	for start < len(calls) && calls[start] <= cutoff {
+		start++
+	}
+	return calls[start:]
 }

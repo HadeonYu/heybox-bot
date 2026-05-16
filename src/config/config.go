@@ -4,10 +4,16 @@ package config
 
 import (
 	"fmt"
+	"heybox-bot/logger"
 	"strings"
 	"time"
 
 	"github.com/spf13/viper"
+)
+
+const (
+	BotModeWhiteList = "white_list"
+	BotModeFrequency = "frequency"
 )
 
 func Load() error {
@@ -28,17 +34,18 @@ func Load() error {
 	viper.SetDefault("log.path", "log/")
 	viper.SetDefault("log.level", "INFO")
 	viper.SetDefault("log.max_day", 7)
-	viper.SetDefault("bot.init_wait_time", 10)
-	viper.SetDefault("bot.max_wait_time", 120)
-	viper.SetDefault("bot.max_post_image_num", 3)
-	viper.SetDefault("bot.max_comment_image_num", 3)
-	viper.SetDefault("bot.white_list", []int{})
 
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("初始化配置失败: %w", err)
 	}
 
 	// bot
+	viper.SetDefault("bot.init_wait_time", 10)
+	viper.SetDefault("bot.max_wait_time", 120)
+	viper.SetDefault("bot.max_post_image_num", 3)
+	viper.SetDefault("bot.max_comment_image_num", 3)
+	viper.SetDefault("bot.white_list", []int{})
+	viper.SetDefault("bot.frequency", 3)
 	if viper.GetInt("bot.init_wait_time") <= 0 {
 		return fmt.Errorf("配置文件中 bot.init_wait_time 必须大于 0")
 	}
@@ -53,6 +60,20 @@ func Load() error {
 	}
 	if viper.GetInt("bot.max_comment_image_num") < 0 {
 		return fmt.Errorf("配置文件中 bot.max_comment_image_num 不能小于 0")
+	}
+	switch GetBotMode() {
+	case BotModeWhiteList:
+		if len(GetBotWhiteList()) == 0 {
+			return fmt.Errorf("配置文件中 bot.mode 为 %q 时 bot.white_list 不能为空", BotModeWhiteList)
+		}
+		logger.Info("bot 以白名单模式启动")
+	case BotModeFrequency:
+		if viper.GetInt("bot.frequency") <= 0 {
+			return fmt.Errorf("配置文件中 bot.mode 为 %q 时 bot.frequency 必须大于 0", BotModeFrequency)
+		}
+		logger.Info("bot 以频率限制模式启动")
+	default:
+		return fmt.Errorf("配置文件中 bot.mode 必须为 %q 或 %q", BotModeWhiteList, BotModeFrequency)
 	}
 
 	// llm
@@ -98,6 +119,10 @@ func GetLogMaxDay() int {
 }
 
 // ------ bot --------
+func GetBotMode() string {
+	return strings.ToLower(viper.GetString("bot.mode"))
+}
+
 func GetBotInitWaitTime() time.Duration {
 	return time.Duration(viper.GetInt("bot.init_wait_time")) * time.Second
 }
@@ -121,6 +146,10 @@ func GetBotWhiteList() []int64 {
 		result = append(result, int64(userID))
 	}
 	return result
+}
+
+func GetBotFrequency() int {
+	return viper.GetInt("bot.frequency")
 }
 
 // ------ llm --------

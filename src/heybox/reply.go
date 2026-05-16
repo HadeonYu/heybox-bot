@@ -2,6 +2,7 @@ package heybox
 
 import (
 	"fmt"
+	"heybox-bot/config"
 	"heybox-bot/db"
 	"heybox-bot/heybox/api"
 	"heybox-bot/llm"
@@ -12,6 +13,7 @@ import (
 
 const (
 	whiteListRefusedReply = "抱歉，你不在白名单中 [cube_摘墨镜]"
+	frequencyRefusedReply = "请求频率超过了设定值 [cube_哭泣]"
 	videoUnsupportedReply = "不支持带视频的消息 [cube_沧桑]"
 )
 
@@ -41,14 +43,15 @@ func replyOne(result MessageArrangeResult) error {
 		return err
 	}
 	if refused {
-		commentID, linkID, err := publishReply(result, whiteListRefusedReply)
+		replyText := refusedReplyText()
+		commentID, linkID, err := publishReply(result, replyText)
 		if err != nil {
 			return err
 		}
-		if err := insertRefusedMessage(result, commentID, linkID, whiteListRefusedReply); err != nil {
+		if err := insertRefusedMessage(result, commentID, linkID, replyText); err != nil {
 			return err
 		}
-		logReplySuccess(commentID, linkID, whiteListRefusedReply, llm.ChatCompletionUsage{})
+		logReplySuccess(commentID, linkID, replyText, llm.ChatCompletionUsage{})
 		return nil
 	}
 
@@ -89,6 +92,13 @@ func replyOne(result MessageArrangeResult) error {
 	}
 	logReplySuccess(commentID, linkID, replyText, resp.Usage)
 	return nil
+}
+
+func refusedReplyText() string {
+	if config.GetBotMode() == config.BotModeFrequency {
+		return frequencyRefusedReply
+	}
+	return whiteListRefusedReply
 }
 
 func publishReply(result MessageArrangeResult, replyText string) (int64, int64, error) {

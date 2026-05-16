@@ -4,11 +4,13 @@ log:
   max_day: 30  # 日志文件保留的天数
 
 bot:
+  mode: "white_list"  # 可选: white_list, frequency
   init_wait_time: 10  # 消息轮询初始等待秒数
   max_wait_time: 120  # 消息轮询最大等待秒数，不能小于 init_wait_time
   max_post_image_num: 3  # 整理未读消息时最多保留的帖子图片数量
   max_comment_image_num: 3  # 整理未读消息时最多保留的评论图片数量
-  white_list: []  # 允许服务的用户 ID 数字列表，例如 [123456, 234567]
+  white_list: []  # 允许服务的用户 ID 数字列表，例如 [123456, 234567]，white_list 模式下生效
+  frequency: 3  # frequency 模式下每个用户一分钟内最多调用次数
 
 llm:
   support_image: true
