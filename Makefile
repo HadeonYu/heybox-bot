@@ -58,7 +58,7 @@ exit:
 	fi
 	@if screen -list | grep -q "\.$(SESSION)\s"; then \
 		echo "→ stopping screen session '$(SESSION)'"; \
-		screen -S $(SESSION) -X quit; \
+		screen -S $(SESSION) -p 0 -X stuff "^C"; \
 	else \
 		echo "No running screen session '$(SESSION)'."; \
 	fi

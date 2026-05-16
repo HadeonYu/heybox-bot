@@ -46,7 +46,7 @@ func main() {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGHUP)
 	defer signal.Stop(sigCh)
 
 	sig := <-sigCh
