@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-const videoUnsupportedReply = "不支持带视频的消息 [cube_沧桑]"
+const (
+	whiteListRefusedReply = "抱歉，你不在白名单中 [cube_摘墨镜]"
+	videoUnsupportedReply = "不支持带视频的消息 [cube_沧桑]"
+)
 
 // reply 根据整理后的 @ 消息生成回复并发布到对应帖子或评论下。
 func reply(results []MessageArrangeResult) error {
@@ -33,6 +36,22 @@ func reply(results []MessageArrangeResult) error {
 }
 
 func replyOne(result MessageArrangeResult) error {
+	refused, err := shouldRefuseService(result.User.UserID)
+	if err != nil {
+		return err
+	}
+	if refused {
+		commentID, linkID, err := publishReply(result, whiteListRefusedReply)
+		if err != nil {
+			return err
+		}
+		if err := insertRefusedMessage(result, commentID, linkID, whiteListRefusedReply); err != nil {
+			return err
+		}
+		logReplySuccess(commentID, linkID, whiteListRefusedReply, llm.ChatCompletionUsage{})
+		return nil
+	}
+
 	if result.HasVideo != 0 {
 		commentID, linkID, err := publishReply(result, videoUnsupportedReply)
 		if err != nil {

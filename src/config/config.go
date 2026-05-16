@@ -32,6 +32,7 @@ func Load() error {
 	viper.SetDefault("bot.max_wait_time", 120)
 	viper.SetDefault("bot.max_post_image_num", 3)
 	viper.SetDefault("bot.max_comment_image_num", 3)
+	viper.SetDefault("bot.white_list", []int{})
 
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("初始化配置失败: %w", err)
@@ -111,6 +112,15 @@ func GetBotMaxPostImageNum() int {
 
 func GetBotMaxCommentImageNum() int {
 	return viper.GetInt("bot.max_comment_image_num")
+}
+
+func GetBotWhiteList() []int64 {
+	whiteList := viper.GetIntSlice("bot.white_list")
+	result := make([]int64, 0, len(whiteList))
+	for _, userID := range whiteList {
+		result = append(result, int64(userID))
+	}
+	return result
 }
 
 // ------ llm --------
