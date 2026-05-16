@@ -30,6 +30,8 @@ func Load() error {
 	viper.SetDefault("log.max_day", 7)
 	viper.SetDefault("bot.init_wait_time", 10)
 	viper.SetDefault("bot.max_wait_time", 120)
+	viper.SetDefault("bot.max_post_image_num", 3)
+	viper.SetDefault("bot.max_comment_image_num", 3)
 
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("初始化配置失败: %w", err)
@@ -44,6 +46,12 @@ func Load() error {
 	}
 	if viper.GetInt("bot.max_wait_time") < viper.GetInt("bot.init_wait_time") {
 		return fmt.Errorf("配置文件中 bot.max_wait_time 不能小于 bot.init_wait_time")
+	}
+	if viper.GetInt("bot.max_post_image_num") < 0 {
+		return fmt.Errorf("配置文件中 bot.max_post_image_num 不能小于 0")
+	}
+	if viper.GetInt("bot.max_comment_image_num") < 0 {
+		return fmt.Errorf("配置文件中 bot.max_comment_image_num 不能小于 0")
 	}
 
 	// llm
@@ -95,6 +103,14 @@ func GetBotInitWaitTime() time.Duration {
 
 func GetBotMaxWaitTime() time.Duration {
 	return time.Duration(viper.GetInt("bot.max_wait_time")) * time.Second
+}
+
+func GetBotMaxPostImageNum() int {
+	return viper.GetInt("bot.max_post_image_num")
+}
+
+func GetBotMaxCommentImageNum() int {
+	return viper.GetInt("bot.max_comment_image_num")
 }
 
 // ------ llm --------

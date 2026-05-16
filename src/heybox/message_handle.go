@@ -309,13 +309,23 @@ func PlainHeyboxMentionText(content string) string {
 func normalizeMessageArrangeResultMentions(result *MessageArrangeResult) {
 	if result.PostLink != nil {
 		result.PostLink.Description = PlainHeyboxMentionText(result.PostLink.Description)
+		result.PostLink.ImgURLs = limitStrings(result.PostLink.ImgURLs, config.GetBotMaxPostImageNum())
 	}
 	if result.RootComment != nil {
 		result.RootComment.Text = PlainHeyboxMentionText(result.RootComment.Text)
+		result.RootComment.ImgURLs = limitStrings(result.RootComment.ImgURLs, config.GetBotMaxCommentImageNum())
 	}
 	if result.TargetComment != nil {
 		result.TargetComment.Text = PlainHeyboxMentionText(result.TargetComment.Text)
 	}
+}
+
+// limitStrings 将字符串切片限制在指定最大长度内。
+func limitStrings(values []string, limit int) []string {
+	if limit < 0 || len(values) <= limit {
+		return values
+	}
+	return values[:limit]
 }
 
 // BuildHeyboxMentionText 根据用户 ID 和昵称生成小黑盒 @ 链接文本。
