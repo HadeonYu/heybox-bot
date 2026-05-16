@@ -118,13 +118,14 @@ func Open(options Options) {
 	termLogger = stdlog.New(termOut, "", stdlog.LstdFlags)
 }
 
-// Close flushes and closes the rotating writer.
+// Close 关闭logger
 func Close() {
 	if fileSink != nil {
 		_ = fileSink.Close()
 		fileSink = nil
 	}
 }
+
 func callerInfo(skip int) string {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {

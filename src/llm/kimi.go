@@ -16,6 +16,7 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
+// KimiCompletion 调用 Kimi Chat Completions API 处理纯文本输入。
 func KimiCompletion(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	client := newOpenAIClient(options)
 	resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
@@ -32,6 +33,7 @@ func KimiCompletion(systemPrompt, userContent string, options LLMOptions) (*Chat
 	return openAICompletionToChatCompletion(resp), nil
 }
 
+// KimiResponse 调用 Kimi 多模态接口处理图文输入。
 func KimiResponse(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	contentParts, err := kimiContentParts(userContent, imageURLs)
 	if err != nil {
@@ -53,6 +55,7 @@ func KimiResponse(systemPrompt, userContent string, imageURLs []string, options 
 	return openAICompletionToChatCompletion(resp), nil
 }
 
+// kimiContentParts 将用户文本和图片转换为 Kimi 消息内容片段。
 func kimiContentParts(userContent string, imageURLs []string) ([]openai.ChatCompletionContentPartUnionParam, error) {
 	parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(imageURLs)+1)
 	for _, imageURL := range imageURLs {
@@ -73,6 +76,7 @@ func kimiContentParts(userContent string, imageURLs []string) ([]openai.ChatComp
 	return parts, nil
 }
 
+// kimiImageDataURL 将图片地址或本地路径转换为 Kimi 需要的 data URL。
 func kimiImageDataURL(imageURL string) (string, error) {
 	if strings.HasPrefix(imageURL, "data:image/") {
 		return imageURL, nil
@@ -92,6 +96,7 @@ func kimiImageDataURL(imageURL string) (string, error) {
 	return fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)), nil
 }
 
+// kimiReadImage 从远程地址或本地路径读取图片数据和类型。
 func kimiReadImage(imageURL string) ([]byte, string, error) {
 	parsedURL, err := url.Parse(imageURL)
 	if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
@@ -119,6 +124,7 @@ func kimiReadImage(imageURL string) ([]byte, string, error) {
 	return data, kimiImageContentType(imageURL), nil
 }
 
+// kimiImageContentType 根据图片路径或 URL 后缀推断图片媒体类型。
 func kimiImageContentType(imageURL string) string {
 	parsedURL, err := url.Parse(imageURL)
 	imagePath := imageURL
@@ -130,6 +136,7 @@ func kimiImageContentType(imageURL string) string {
 	return kimiNormalizeImageContentType(contentType)
 }
 
+// kimiNormalizeImageContentType 规范化并校验图片媒体类型。
 func kimiNormalizeImageContentType(contentType string) string {
 	contentType = strings.TrimSpace(strings.Split(contentType, ";")[0])
 	if strings.HasPrefix(contentType, "image/") {

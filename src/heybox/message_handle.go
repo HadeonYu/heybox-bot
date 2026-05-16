@@ -32,6 +32,7 @@ type MessageArrangeResult struct {
 	TargetComment *api.PostComment `json:"target_comment,omitempty"`
 }
 
+// getAtMessageCb 定时拉取并整理未读 @ 消息。
 func getAtMessageCb(timer *TimerContext) error {
 	lastTimestamp, err := loadLastAtMessageTimestamp()
 	if err != nil {
@@ -77,6 +78,7 @@ func getAtMessageCb(timer *TimerContext) error {
 	return nil
 }
 
+// nextAtMessageInterval 根据当前间隔计算带随机波动的下一次检查间隔。
 func nextAtMessageInterval(current time.Duration) time.Duration {
 	initInterval := config.GetBotInitWaitTime()
 	maxInterval := config.GetBotMaxWaitTime()
@@ -95,6 +97,7 @@ func nextAtMessageInterval(current time.Duration) time.Duration {
 	return nextInterval
 }
 
+// getUnreadAtMessages 拉取时间戳晚于已记录时间的未读 @ 消息。
 func getUnreadAtMessages(lastTimestamp float64) ([]api.Message, float64, error) {
 	if saved_sess == nil {
 		return nil, lastTimestamp, fmt.Errorf("会话为空")
@@ -139,6 +142,7 @@ func getUnreadAtMessages(lastTimestamp float64) ([]api.Message, float64, error) 
 	return unread, maxTimestamp, nil
 }
 
+// arrangeUnreadAtMessage 根据消息类型整理帖子、根评论和目标评论信息。
 func arrangeUnreadAtMessage(msg api.Message) (MessageArrangeResult, error) {
 	messageTime, err := parseMessageTime(msg.Timestamp)
 	if err != nil {
@@ -191,6 +195,7 @@ func arrangeUnreadAtMessage(msg api.Message) (MessageArrangeResult, error) {
 	return result, nil
 }
 
+// findRootComment 分页查找消息对应的根评论和评论分支。
 func findRootComment(msg api.Message) (*api.PostComment, []api.PostComment, *api.PostTreeResult, error) {
 	for page := 1; ; page++ {
 		tree, err := fetchPostTreePage(msg.LinkID, page)
@@ -215,6 +220,7 @@ func findRootComment(msg api.Message) (*api.PostComment, []api.PostComment, *api
 	return nil, nil, nil, fmt.Errorf("帖子 %d 中未找到根评论 %d", msg.LinkID, msg.RootCommentID)
 }
 
+// fetchPostTreePage 拉取指定帖子的指定页评论树。
 func fetchPostTreePage(linkID int64, page int) (*api.PostTreeResult, error) {
 	if saved_sess == nil {
 		return nil, fmt.Errorf("会话为空")
@@ -224,6 +230,7 @@ func fetchPostTreePage(linkID int64, page int) (*api.PostTreeResult, error) {
 	return api.GetPostTree(saved_sess.HeyboxID, linkID, page)
 }
 
+// findCommentInGroup 在评论分支中查找指定评论 ID 的评论。
 func findCommentInGroup(group []api.PostComment, commentID int64) *api.PostComment {
 	for i := range group {
 		if group[i].CommentID == commentID {
@@ -233,6 +240,7 @@ func findCommentInGroup(group []api.PostComment, commentID int64) *api.PostComme
 	return nil
 }
 
+// findSubComment 继续拉取子评论直到找到消息对应的目标评论。
 func findSubComment(msg api.Message, group []api.PostComment) (*api.PostComment, error) {
 	if saved_sess == nil {
 		return nil, fmt.Errorf("会话为空")
@@ -272,6 +280,7 @@ func findSubComment(msg api.Message, group []api.PostComment) (*api.PostComment,
 	return nil, fmt.Errorf("根评论 %d 下未找到评论 %d", msg.RootCommentID, msg.CommentID)
 }
 
+// PlainHeyboxMentionText 将小黑盒 @ 链接文本转换为普通 @ 文本。
 func PlainHeyboxMentionText(content string) string {
 	content = normalizeEscapedHeyboxMentionText(content)
 	matches := heyboxMentionRe.FindAllStringSubmatchIndex(content, -1)
@@ -296,6 +305,7 @@ func PlainHeyboxMentionText(content string) string {
 	return b.String()
 }
 
+// normalizeMessageArrangeResultMentions 统一整理结果中的 @ 链接显示文本。
 func normalizeMessageArrangeResultMentions(result *MessageArrangeResult) {
 	if result.PostLink != nil {
 		result.PostLink.Description = PlainHeyboxMentionText(result.PostLink.Description)
@@ -308,6 +318,7 @@ func normalizeMessageArrangeResultMentions(result *MessageArrangeResult) {
 	}
 }
 
+// BuildHeyboxMentionText 根据用户 ID 和昵称生成小黑盒 @ 链接文本。
 func BuildHeyboxMentionText(userID int64, username string) string {
 	username = strings.TrimPrefix(username, "@")
 	userIDStr := strconv.FormatInt(userID, 10)
@@ -328,6 +339,7 @@ func BuildHeyboxMentionText(userID int64, username string) string {
 	)
 }
 
+// normalizeEscapedHeyboxMentionText 将转义后的 HTML 片段还原为可匹配文本。
 func normalizeEscapedHeyboxMentionText(content string) string {
 	replacer := strings.NewReplacer(
 		`\u003c`, "<",
@@ -342,6 +354,7 @@ func normalizeEscapedHeyboxMentionText(content string) string {
 	return replacer.Replace(content)
 }
 
+// parseMessageTimestamp 将消息时间戳字符串解析为浮点秒数。
 func parseMessageTimestamp(timestamp string) (float64, error) {
 	ts, err := strconv.ParseFloat(timestamp, 64)
 	if err != nil {
@@ -350,6 +363,7 @@ func parseMessageTimestamp(timestamp string) (float64, error) {
 	return ts, nil
 }
 
+// parseMessageTime 将消息时间戳字符串解析为 time.Time。
 func parseMessageTime(timestamp string) (time.Time, error) {
 	parts := strings.SplitN(timestamp, ".", 2)
 	sec, err := strconv.ParseInt(parts[0], 10, 64)

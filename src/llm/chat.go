@@ -57,6 +57,7 @@ type CompletionTokensDetails struct {
 	ReasoningTokens int `json:"reasoning_tokens"`
 }
 
+// GenerateResponse 根据配置生成文本或图文回复。
 func GenerateResponse(content string, imageURLs []string) (*ChatCompletionResponse, error) {
 	if !config.GetLLMSupportImage() {
 		imageURLs = nil
@@ -74,6 +75,7 @@ func GenerateResponse(content string, imageURLs []string) (*ChatCompletionRespon
 	return chat(joinContentAndImageDescription(content, imageDescription), nil)
 }
 
+// LLMTest 按当前配置执行文本和图片模型连通性测试。
 func LLMTest() {
 	supportImage := config.GetLLMSupportImage()
 	extraImageLLM := config.GetLLMExtraImageLLM()
@@ -109,6 +111,7 @@ func LLMTest() {
 	printUsage(imageResp)
 }
 
+// chat 使用主聊天模型处理用户文本和可选图片。
 func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
 	options := chatOptions()
 
@@ -118,6 +121,7 @@ func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
 	return callResponseLLM(systemPrompt, content, imageURLs, options)
 }
 
+// chatOptions 从配置读取主聊天模型调用参数。
 func chatOptions() LLMOptions {
 	return LLMOptions{
 		Vendor:  config.GetLLMVendor(),
@@ -127,6 +131,7 @@ func chatOptions() LLMOptions {
 	}
 }
 
+// imageOptions 从配置读取额外图片模型调用参数。
 func imageOptions() LLMOptions {
 	return LLMOptions{
 		Vendor:  config.GetImageLLMVendor(),
@@ -136,6 +141,7 @@ func imageOptions() LLMOptions {
 	}
 }
 
+// describeImages 使用图片模型将图片转换为文字描述。
 func describeImages(imageURLs []string) (string, error) {
 	resp, err := callResponseLLM(imageDescriptionSystemPrompt, imageDescriptionUserPrompt, imageURLs, imageOptions())
 	if err != nil {
@@ -156,6 +162,7 @@ type LLMOptions struct {
 	Model   string
 }
 
+// callChatLLM 根据厂商选择纯文本聊天模型实现。
 func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
 	case "", llmVendorOpenAI, llmVendorDeepSeek:
@@ -171,6 +178,7 @@ func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCom
 	}
 }
 
+// callResponseLLM 根据厂商选择支持图片输入的模型实现。
 func callResponseLLM(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
 	case "", llmVendorOpenAI, llmVendorDeepSeek:
@@ -186,6 +194,7 @@ func callResponseLLM(systemPrompt, userContent string, imageURLs []string, optio
 	}
 }
 
+// joinContentAndImageDescription 将原始文本和图片描述合并为模型输入。
 func joinContentAndImageDescription(content, imageDescription string) string {
 	if strings.TrimSpace(imageDescription) == "" {
 		return content
@@ -196,6 +205,7 @@ func joinContentAndImageDescription(content, imageDescription string) string {
 	return content + "\n\n图片信息：\n" + imageDescription
 }
 
+// firstResponseContent 返回模型响应中的第一条消息内容。
 func firstResponseContent(resp *ChatCompletionResponse) string {
 	if resp == nil || len(resp.Choices) == 0 {
 		return ""
@@ -203,6 +213,7 @@ func firstResponseContent(resp *ChatCompletionResponse) string {
 	return strings.TrimSpace(resp.Choices[0].Message.Content)
 }
 
+// printUsage 输出模型响应中的 token 消耗信息。
 func printUsage(resp *ChatCompletionResponse) {
 	if resp == nil {
 		return

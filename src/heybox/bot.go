@@ -20,6 +20,7 @@ var (
 	doneCh     chan struct{}
 )
 
+// outputQRCode 在终端和本地图片文件中输出登录二维码。
 func outputQRCode(qrURL string) error {
 	qrterminal.GenerateHalfBlock(qrURL, qrterminal.L, os.Stdout)
 
@@ -31,6 +32,7 @@ func outputQRCode(qrURL string) error {
 	return nil
 }
 
+// getLoginState 轮询二维码状态直到登录成功或超时。
 func getLoginState(qrID string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
@@ -67,6 +69,7 @@ func getLoginState(qrID string, timeout time.Duration) error {
 	}
 }
 
+// loginSkipQRCode 尝试使用已保存会话跳过二维码登录。
 func loginSkipQRCode() error {
 	var err error
 	saved_sess, err = loadSession()
@@ -87,6 +90,7 @@ func loginSkipQRCode() error {
 	return fmt.Errorf("会话权限无效")
 }
 
+// login 完成会话复用或二维码登录流程。
 func login() error {
 	if err := loginSkipQRCode(); err == nil {
 		return nil
@@ -114,6 +118,7 @@ func login() error {
 	return nil
 }
 
+// Run 初始化元数据、登录账号并启动机器人后台循环。
 func Run() error {
 	if err := initMetadata(); err != nil {
 		err = fmt.Errorf("初始化元数据失败: %v", err)
@@ -149,6 +154,7 @@ func Run() error {
 	return nil
 }
 
+// Stop 停止机器人后台循环并等待退出完成。
 func Stop() {
 	runMu.Lock()
 	stop := stopCh

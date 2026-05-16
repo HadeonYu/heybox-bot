@@ -29,6 +29,7 @@ type metadata struct {
 	DeviceID          string `json:"device_id"`
 }
 
+// readMetadataFile 读取元数据文件并在需要时回退读取旧路径。
 func readMetadataFile(path, legacyPath string) ([]byte, bool, error) {
 	b, err := os.ReadFile(path)
 	if err == nil || !os.IsNotExist(err) || legacyPath == "" {
@@ -42,6 +43,7 @@ func readMetadataFile(path, legacyPath string) ([]byte, bool, error) {
 	return b, true, nil
 }
 
+// writeMetadataFile 创建元数据目录并写入指定文件内容。
 func writeMetadataFile(path string, b []byte, perm os.FileMode) error {
 	if err := os.MkdirAll(metadataDir, 0o700); err != nil {
 		return fmt.Errorf("创建元数据目录失败: %w", err)
@@ -49,6 +51,7 @@ func writeMetadataFile(path string, b []byte, perm os.FileMode) error {
 	return os.WriteFile(path, b, perm)
 }
 
+// initMetadata 加载或初始化全局元数据并设置 API 设备 ID。
 func initMetadata() error {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
@@ -62,6 +65,7 @@ func initMetadata() error {
 	return nil
 }
 
+// loadMetadataLocked 在持锁状态下读取或创建 metadata.json。
 func loadMetadataLocked() (*metadata, error) {
 	b, err := os.ReadFile(metadataFile)
 	if err != nil {
@@ -101,6 +105,7 @@ func loadMetadataLocked() (*metadata, error) {
 	return md, nil
 }
 
+// newDefaultMetadata 创建带当前时间和随机设备 ID 的默认元数据。
 func newDefaultMetadata() *metadata {
 	deviceID, err := randomDeviceID()
 	if err != nil {
@@ -112,6 +117,7 @@ func newDefaultMetadata() *metadata {
 	}
 }
 
+// randomDeviceID 生成 32 位十六进制设备 ID。
 func randomDeviceID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -120,6 +126,7 @@ func randomDeviceID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// saveMetadataLocked 在持锁状态下将元数据保存到文件。
 func saveMetadataLocked(md *metadata) error {
 	b, err := json.MarshalIndent(md, "", "\t")
 	if err != nil {
@@ -131,12 +138,14 @@ func saveMetadataLocked(md *metadata) error {
 	return nil
 }
 
+// formatMetadataTimestamp 将浮点秒数时间戳格式化为可读时间。
 func formatMetadataTimestamp(timestamp float64) string {
 	sec := int64(timestamp)
 	nsec := int64((timestamp - float64(sec)) * 1e9)
 	return time.Unix(sec, nsec).Local().Format(metadataTimeFmt)
 }
 
+// parseMetadataTimestamp 将元数据中的可读时间解析为浮点秒数。
 func parseMetadataTimestamp(timestamp string) (float64, error) {
 	t, err := time.ParseInLocation(metadataTimeFmt, timestamp, time.Local)
 	if err != nil {
@@ -145,6 +154,7 @@ func parseMetadataTimestamp(timestamp string) (float64, error) {
 	return float64(t.Unix()), nil
 }
 
+// loadLastAtMessageTimestamp 读取上次处理 @ 消息的时间戳。
 func loadLastAtMessageTimestamp() (float64, error) {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
@@ -160,6 +170,7 @@ func loadLastAtMessageTimestamp() (float64, error) {
 	return parseMetadataTimestamp(currentMetadata.LastAtMessageTime)
 }
 
+// saveLastAtMessageTimestamp 保存上次处理 @ 消息的时间戳。
 func saveLastAtMessageTimestamp(timestamp float64) error {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()

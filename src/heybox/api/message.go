@@ -35,6 +35,7 @@ type Message struct {
 	IsPost        bool   `json:"-"`
 }
 
+// UnmarshalJSON 将消息中心响应解析为统一的 Message 结构。
 func (m *Message) UnmarshalJSON(data []byte) error {
 	type messageAlias Message
 	var aux struct {

@@ -10,6 +10,7 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
+// OpenAIResponse 调用 OpenAI Responses API 处理图文输入。
 func OpenAIResponse(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	client := newOpenAIClient(options)
 	resp, err := client.Responses.New(context.Background(), responses.ResponseNewParams{
@@ -26,6 +27,7 @@ func OpenAIResponse(systemPrompt, userContent string, imageURLs []string, option
 	return openAIResponseToChatCompletion(resp), nil
 }
 
+// OpenAICompletion 调用 OpenAI Chat Completions API 处理纯文本输入。
 func OpenAICompletion(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	client := newOpenAIClient(options)
 	resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
@@ -42,6 +44,7 @@ func OpenAICompletion(systemPrompt, userContent string, options LLMOptions) (*Ch
 	return openAICompletionToChatCompletion(resp), nil
 }
 
+// newOpenAIClient 根据模型配置创建 OpenAI 兼容客户端。
 func newOpenAIClient(options LLMOptions) openai.Client {
 	clientOptions := []option.RequestOption{
 		option.WithAPIKey(options.APIKey),
@@ -53,6 +56,7 @@ func newOpenAIClient(options LLMOptions) openai.Client {
 	return openai.NewClient(clientOptions...)
 }
 
+// openAIInput 将用户文本和图片地址转换为 Responses API 输入。
 func openAIInput(userContent string, imageURLs []string) responses.ResponseInputParam {
 	if len(imageURLs) == 0 {
 		return responses.ResponseInputParam{
@@ -81,6 +85,7 @@ func openAIInput(userContent string, imageURLs []string) responses.ResponseInput
 	}
 }
 
+// openAIResponseToChatCompletion 将 Responses API 响应转换为统一结构。
 func openAIResponseToChatCompletion(resp *responses.Response) *ChatCompletionResponse {
 	if resp == nil {
 		return &ChatCompletionResponse{}
@@ -109,6 +114,7 @@ func openAIResponseToChatCompletion(resp *responses.Response) *ChatCompletionRes
 	}
 }
 
+// openAICompletionToChatCompletion 将 Chat Completions 响应转换为统一结构。
 func openAICompletionToChatCompletion(resp *openai.ChatCompletion) *ChatCompletionResponse {
 	if resp == nil {
 		return &ChatCompletionResponse{}

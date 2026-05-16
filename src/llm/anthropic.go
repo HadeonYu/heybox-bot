@@ -13,14 +13,17 @@ import (
 
 const anthropicDefaultMaxTokens int64 = 4096
 
+// AnthropicCompletion 调用 Anthropic Messages API 处理纯文本输入。
 func AnthropicCompletion(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	return anthropicMessage(systemPrompt, userContent, nil, options)
 }
 
+// AnthropicResponse 调用 Anthropic Messages API 处理图文输入。
 func AnthropicResponse(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	return anthropicMessage(systemPrompt, userContent, imageURLs, options)
 }
 
+// anthropicMessage 构造 Anthropic 消息请求并返回统一响应。
 func anthropicMessage(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	client := anthropic.NewClient(anthropicClientOptions(options)...)
 	resp, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
@@ -38,6 +41,7 @@ func anthropicMessage(systemPrompt, userContent string, imageURLs []string, opti
 	return anthropicMessageToChatCompletion(resp), nil
 }
 
+// anthropicClientOptions 根据配置生成 Anthropic 客户端选项。
 func anthropicClientOptions(options LLMOptions) []option.RequestOption {
 	clientOptions := []option.RequestOption{
 		option.WithAPIKey(options.APIKey),
@@ -48,6 +52,7 @@ func anthropicClientOptions(options LLMOptions) []option.RequestOption {
 	return clientOptions
 }
 
+// anthropicSystemPrompt 将系统提示词转换为 Anthropic system 参数。
 func anthropicSystemPrompt(systemPrompt string) []anthropic.TextBlockParam {
 	if systemPrompt == "" {
 		return nil
@@ -57,6 +62,7 @@ func anthropicSystemPrompt(systemPrompt string) []anthropic.TextBlockParam {
 	}
 }
 
+// anthropicContentBlocks 将用户文本和图片转换为 Anthropic 内容块。
 func anthropicContentBlocks(userContent string, imageURLs []string) []anthropic.ContentBlockParamUnion {
 	blocks := make([]anthropic.ContentBlockParamUnion, 0, len(imageURLs)+1)
 	for _, imageURL := range imageURLs {
@@ -76,6 +82,7 @@ func anthropicContentBlocks(userContent string, imageURLs []string) []anthropic.
 	return blocks
 }
 
+// anthropicImageBlock 将图片地址、本地路径或 data URL 转换为 Anthropic 图片块。
 func anthropicImageBlock(imageURL string) (anthropic.ContentBlockParamUnion, error) {
 	if strings.HasPrefix(imageURL, "data:image/") {
 		mediaType, data, err := anthropicParseDataURL(imageURL)
@@ -104,6 +111,7 @@ func anthropicImageBlock(imageURL string) (anthropic.ContentBlockParamUnion, err
 	return anthropic.NewImageBlockBase64(mediaType, base64.StdEncoding.EncodeToString(data)), nil
 }
 
+// anthropicParseDataURL 解析图片 data URL 中的媒体类型和 base64 数据。
 func anthropicParseDataURL(dataURL string) (string, string, error) {
 	header, data, ok := strings.Cut(dataURL, ",")
 	if !ok {
@@ -118,6 +126,7 @@ func anthropicParseDataURL(dataURL string) (string, string, error) {
 	return mediaType, data, nil
 }
 
+// anthropicMessageToChatCompletion 将 Anthropic 响应转换为统一结构。
 func anthropicMessageToChatCompletion(resp *anthropic.Message) *ChatCompletionResponse {
 	if resp == nil {
 		return &ChatCompletionResponse{}

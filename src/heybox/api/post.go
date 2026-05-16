@@ -24,6 +24,7 @@ type PostLink struct {
 	ContentTags []string `json:"content_tags"`
 }
 
+// UnmarshalJSON 将帖子树响应解析为帖子信息和二维评论列表。
 func (r *PostTreeResult) UnmarshalJSON(data []byte) error {
 	type resultAlias PostTreeResult
 	var aux struct {
@@ -40,6 +41,7 @@ func (r *PostTreeResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON 将帖子 link 字段解析为简化的 PostLink 结构。
 func (l *PostLink) UnmarshalJSON(data []byte) error {
 	type linkAlias PostLink
 	var aux struct {
@@ -73,6 +75,7 @@ func (l *PostLink) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// parseTextContent 从帖子富文本 JSON 中提取描述和图片地址。
 func (l *PostLink) parseTextContent(text string) {
 	var contents []struct {
 		Type string `json:"type"`

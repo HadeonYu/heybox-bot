@@ -19,6 +19,7 @@ type TimerContext struct {
 	task *scheduledJob
 }
 
+// SetInterval 修改当前定时器下一轮使用的执行间隔。
 func (ctx *TimerContext) SetInterval(interval time.Duration) {
 	if interval <= 0 {
 		return
@@ -26,10 +27,12 @@ func (ctx *TimerContext) SetInterval(interval time.Duration) {
 	ctx.task.interval = interval
 }
 
+// Interval 返回当前定时器的执行间隔。
 func (ctx *TimerContext) Interval() time.Duration {
 	return ctx.task.interval
 }
 
+// StopTimer 标记当前定时器停止后续执行。
 func (ctx *TimerContext) StopTimer() {
 	ctx.task.stopped = true
 }
@@ -43,14 +46,17 @@ type scheduledJob struct {
 	immediate bool
 }
 
+// AddTimer 添加首次延迟执行的定时器任务。
 func AddTimer(name string, interval time.Duration, callback TimerCallback) error {
 	return addTimer(name, interval, callback, false)
 }
 
+// AddImmediateTimer 添加启动后立即执行一次的定时器任务。
 func AddImmediateTimer(name string, interval time.Duration, callback TimerCallback) error {
 	return addTimer(name, interval, callback, true)
 }
 
+// addTimer 校验参数并注册定时器任务。
 func addTimer(name string, interval time.Duration, callback TimerCallback, immediate bool) error {
 	if name == "" {
 		return fmt.Errorf("定时器名称为空")
@@ -83,6 +89,7 @@ func addTimer(name string, interval time.Duration, callback TimerCallback, immed
 	return nil
 }
 
+// nextRunTime 根据是否立即执行计算下一次运行时间。
 func nextRunTime(now time.Time, interval time.Duration, immediate bool) time.Time {
 	if immediate {
 		return now
@@ -90,6 +97,7 @@ func nextRunTime(now time.Time, interval time.Duration, immediate bool) time.Tim
 	return now.Add(interval)
 }
 
+// resetScheduledJobs 在运行循环启动前重置所有定时器的下一次运行时间。
 func resetScheduledJobs() {
 	scheduledJobsMu.Lock()
 	defer scheduledJobsMu.Unlock()
@@ -103,6 +111,7 @@ func resetScheduledJobs() {
 	}
 }
 
+// runLoop 持续驱动定时器任务直到收到停止信号。
 func runLoop(stop <-chan struct{}, done chan<- struct{}) {
 	defer close(done)
 
@@ -120,6 +129,7 @@ func runLoop(stop <-chan struct{}, done chan<- struct{}) {
 	}
 }
 
+// runDueJobs 执行所有已经到期的定时器任务。
 func runDueJobs() {
 	now := time.Now()
 	jobs := dueJobs(now)
@@ -140,6 +150,7 @@ func runDueJobs() {
 	}
 }
 
+// dueJobs 返回指定时间点已经到期且未停止的任务列表。
 func dueJobs(now time.Time) []*scheduledJob {
 	scheduledJobsMu.Lock()
 	defer scheduledJobsMu.Unlock()

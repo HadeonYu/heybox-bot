@@ -38,6 +38,7 @@ type response struct {
 	Raw     json.RawMessage `json:"-"`
 }
 
+// SetCookies 将已有 Cookie 写入 HTTP 客户端的 CookieJar。
 func SetCookies(cookies []*http.Cookie) {
 	if len(cookies) == 0 {
 		return
@@ -47,30 +48,36 @@ func SetCookies(cookies []*http.Cookie) {
 	httpClient.Jar.SetCookies(u, cookies)
 }
 
+// SetCookieUpdateHandler 设置响应 Cookie 更新时的回调函数。
 func SetCookieUpdateHandler(handler func([]*http.Cookie)) {
 	cookieUpdateHandler = handler
 }
 
+// SetDeviceID 设置后续 API 请求使用的设备 ID。
 func SetDeviceID(id string) {
 	deviceIDMu.Lock()
 	defer deviceIDMu.Unlock()
 	deviceID = id
 }
 
+// getDeviceID 返回当前 API 请求使用的设备 ID。
 func getDeviceID() string {
 	deviceIDMu.RLock()
 	defer deviceIDMu.RUnlock()
 	return deviceID
 }
 
+// GetRequest 发起带通用参数的小黑盒 GET 请求。
 func GetRequest(apiPath string, heyboxID string, extraQuery ...map[string]string) (*response, error) {
 	return request(http.MethodGet, apiPath, heyboxID, extraQuery...)
 }
 
+// PostRequest 发起带通用参数和表单数据的小黑盒 POST 请求。
 func PostRequest(apiPath string, heyboxID string, form ...map[string]string) (*response, error) {
 	return request(http.MethodPost, apiPath, heyboxID, form...)
 }
 
+// request 构造签名参数并发送小黑盒 API 请求。
 func request(method string, apiPath string, heyboxID string, values ...map[string]string) (*response, error) {
 	hkey, ts, nonce := makeHeyboxSign(apiPath)
 
@@ -136,6 +143,7 @@ func request(method string, apiPath string, heyboxID string, values ...map[strin
 	return &result, nil
 }
 
+// setDefaultHeaders 为请求设置小黑盒网页端默认请求头。
 func setDefaultHeaders(req *http.Request) {
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7")
@@ -150,6 +158,7 @@ func setDefaultHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36")
 }
 
+// setValues 将额外键值写入 URL 或表单参数集合。
 func setValues(values url.Values, extraValues ...map[string]string) {
 	for _, extra := range extraValues {
 		for k, v := range extra {

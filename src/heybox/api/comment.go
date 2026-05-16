@@ -30,6 +30,7 @@ type createCommentResponse struct {
 	CommentID int64 `json:"commentid"`
 }
 
+// UnmarshalJSON 将评论响应解析为简化的 PostComment 结构。
 func (c *PostComment) UnmarshalJSON(data []byte) error {
 	type commentAlias PostComment
 	var aux struct {
@@ -51,6 +52,7 @@ func (c *PostComment) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// collectCommentGroups 将评论树中的评论分支整理为二维数组。
 func collectCommentGroups(groups []commentGroup) [][]PostComment {
 	comments := make([][]PostComment, 0, len(groups))
 	for _, group := range groups {
@@ -59,7 +61,7 @@ func collectCommentGroups(groups []commentGroup) [][]PostComment {
 	return comments
 }
 
-// GetSubComments 拉取某个根评论下的更多子评论。
+// GetSubComments 拉取指定根评论下的更多子评论。
 func GetSubComments(heyboxID string, rootCommentID, lastVal int64) (*SubCommentsResult, error) {
 	resp, err := GetRequest("/bbs/app/comment/sub/comments", heyboxID, map[string]string{
 		"lastval":         strconv.FormatInt(lastVal, 10),

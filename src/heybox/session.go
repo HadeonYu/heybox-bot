@@ -16,10 +16,12 @@ type session struct {
 	Cookies  []*http.Cookie `json:"cookies"`
 }
 
+// init 注册 API Cookie 更新回调。
 func init() {
 	api.SetCookieUpdateHandler(updateSavedSessionCookies)
 }
 
+// newSession 根据二维码登录结果创建会话对象。
 func newSession(state *api.QRStateResult) *session {
 	return &session{
 		HeyboxID: state.HeyboxID,
@@ -30,6 +32,7 @@ func newSession(state *api.QRStateResult) *session {
 	}
 }
 
+// save 将当前会话保存到元数据目录。
 func (s *session) save() error {
 	b, err := json.MarshalIndent(s, "", "\t")
 	if err != nil {
@@ -43,6 +46,7 @@ func (s *session) save() error {
 	return nil
 }
 
+// updateCookies 将响应中的 Cookie 合并到当前会话。
 func (s *session) updateCookies(cookies []*http.Cookie) {
 	for _, cookie := range cookies {
 		if cookie == nil {
@@ -64,6 +68,7 @@ func (s *session) updateCookies(cookies []*http.Cookie) {
 	}
 }
 
+// sameCookie 判断两个 Cookie 是否代表同一个存储项。
 func sameCookie(a, b *http.Cookie) bool {
 	if a == nil || b == nil {
 		return false
@@ -71,6 +76,7 @@ func sameCookie(a, b *http.Cookie) bool {
 	return a.Name == b.Name && a.Domain == b.Domain && a.Path == b.Path
 }
 
+// updateSavedSessionCookies 更新全局会话中的 Cookie 并持久化。
 func updateSavedSessionCookies(cookies []*http.Cookie) {
 	if saved_sess == nil || len(cookies) == 0 {
 		return
@@ -82,6 +88,7 @@ func updateSavedSessionCookies(cookies []*http.Cookie) {
 	}
 }
 
+// loadSession 从元数据目录读取并恢复会话。
 func loadSession() (*session, error) {
 	b, fromLegacy, err := readMetadataFile(sessionFile, legacySessionFile)
 	if err != nil {
