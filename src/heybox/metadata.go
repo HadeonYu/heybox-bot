@@ -1,12 +1,15 @@
 package heybox
 
 import (
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"heybox-bot/heybox/api"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -27,6 +30,7 @@ var (
 type metadata struct {
 	LastAtMessageTime string `json:"last_at_message_time"`
 	DeviceID          string `json:"device_id"`
+	XHHTokenID        string `json:"x_xhh_tokenid"`
 }
 
 // readMetadataFile 读取元数据文件并在需要时回退读取旧路径。
@@ -62,6 +66,7 @@ func initMetadata() error {
 	}
 	currentMetadata = md
 	api.SetDeviceID(md.DeviceID)
+	api.SetXHHTokenID(md.XHHTokenID)
 	return nil
 }
 
@@ -96,6 +101,14 @@ func loadMetadataLocked() (*metadata, error) {
 		md.DeviceID = deviceID
 		changed = true
 	}
+	if md.XHHTokenID == "" {
+		tokenID, err := newXHHTokenID()
+		if err != nil {
+			return nil, err
+		}
+		md.XHHTokenID = tokenID
+		changed = true
+	}
 	if changed {
 		if err := saveMetadataLocked(md); err != nil {
 			return nil, err
@@ -114,16 +127,71 @@ func newDefaultMetadata() *metadata {
 	return &metadata{
 		LastAtMessageTime: formatMetadataTimestamp(float64(time.Now().Unix())),
 		DeviceID:          deviceID,
+		XHHTokenID:        mustNewXHHTokenID(),
 	}
 }
 
 // randomDeviceID 生成 32 位十六进制设备 ID。
 func randomDeviceID() (string, error) {
+	return randomHex32("生成 device_id 失败")
+}
+
+// randomHex32 生成 32 位十六进制随机字符串。
+func randomHex32(errMsg string) (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("生成 device_id 失败: %w", err)
+		return "", fmt.Errorf("%s: %w", errMsg, err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// mustNewXHHTokenID 生成 x_xhh_tokenid 并在失败时使用时间兜底。
+func mustNewXHHTokenID() string {
+	tokenID, err := newXHHTokenID()
+	if err == nil {
+		return tokenID
+	}
+	return fallbackXHHTokenID()
+}
+
+// newXHHTokenID 按小黑盒网页端算法生成 x_xhh_tokenid。
+func newXHHTokenID() (string, error) {
+	randomText1, err := randomHex32("生成 x_xhh_tokenid 随机文本失败1")
+	if err != nil {
+		return "", err
+	}
+	randomText2, err := randomHex32("生成 x_xhh_tokenid 随机文本失败2")
+	if err != nil {
+		return "", err
+	}
+	randomText3, err := randomHex32("生成 x_xhh_tokenid 随机文本失败3")
+	if err != nil {
+		return "", err
+	}
+
+	return encodeXHHTokenID(
+		strconv.Itoa(int(time.Now().Unix())),
+		randomText1,
+		randomText2,
+		randomText3,
+	), nil
+}
+
+// fallbackXHHTokenID 使用当前时间构造兜底的 x_xhh_tokenid。
+func fallbackXHHTokenID() string {
+	now := strconv.FormatInt(time.Now().UnixNano(), 10)
+	return encodeXHHTokenID(now, now+"1", now+"2", now+"3")
+}
+
+// encodeXHHTokenID 将时间文本和随机文本混合编码为 x_xhh_tokenid。
+func encodeXHHTokenID(parts ...string) string {
+	raw := make([]byte, 0, md5.Size*len(parts)+1)
+	for _, part := range parts {
+		sum := md5.Sum([]byte(part))
+		raw = append(raw, sum[:]...)
+	}
+	raw = append(raw, 0)
+	return base64.StdEncoding.EncodeToString(raw)
 }
 
 // saveMetadataLocked 在持锁状态下将元数据保存到文件。
@@ -166,6 +234,7 @@ func loadLastAtMessageTimestamp() (float64, error) {
 		}
 		currentMetadata = md
 		api.SetDeviceID(md.DeviceID)
+		api.SetXHHTokenID(md.XHHTokenID)
 	}
 	return parseMetadataTimestamp(currentMetadata.LastAtMessageTime)
 }
@@ -187,5 +256,6 @@ func saveLastAtMessageTimestamp(timestamp float64) error {
 		return err
 	}
 	api.SetDeviceID(currentMetadata.DeviceID)
+	api.SetXHHTokenID(currentMetadata.XHHTokenID)
 	return nil
 }

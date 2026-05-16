@@ -27,6 +27,8 @@ var (
 	cookieUpdateHandler func([]*http.Cookie)
 	deviceID            string
 	deviceIDMu          sync.RWMutex
+	xhhTokenID          string
+	xhhTokenIDMu        sync.RWMutex
 )
 
 type response struct {
@@ -65,6 +67,20 @@ func getDeviceID() string {
 	deviceIDMu.RLock()
 	defer deviceIDMu.RUnlock()
 	return deviceID
+}
+
+// SetXHHTokenID 设置后续 API 请求 Cookie 中使用的 x_xhh_tokenid。
+func SetXHHTokenID(tokenID string) {
+	xhhTokenIDMu.Lock()
+	defer xhhTokenIDMu.Unlock()
+	xhhTokenID = tokenID
+}
+
+// getXHHTokenID 返回当前 API 请求使用的 x_xhh_tokenid。
+func getXHHTokenID() string {
+	xhhTokenIDMu.RLock()
+	defer xhhTokenIDMu.RUnlock()
+	return xhhTokenID
 }
 
 // GetRequest 发起带通用参数的小黑盒 GET 请求。
@@ -115,6 +131,12 @@ func request(method string, apiPath string, heyboxID string, values ...map[strin
 	}
 
 	setDefaultHeaders(req)
+	if tokenID := getXHHTokenID(); tokenID != "" {
+		req.AddCookie(&http.Cookie{
+			Name:  "x_xhh_tokenid",
+			Value: tokenID,
+		})
+	}
 	if method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
