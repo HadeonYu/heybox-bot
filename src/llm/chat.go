@@ -12,6 +12,12 @@ const (
 	llmVendorVolcengine = "volcengine"
 	llmVendorVolcano    = "volcano"
 	llmVendorArk        = "ark"
+
+	llmTestSystemPrompt = "你是一个只能助手"
+	llmTestUserContent  = "你好"
+	llmTestImagePrompt  = "回答必须以“我看到了这张图片，内容是...”开头"
+	llmTestImageContent = "你看到了什么？"
+	llmTestImageURL     = "https://ark-project.tos-cn-beijing.volces.com/doc_image/ark_demo_img_1.png"
 )
 
 type ChatCompletionResponse struct {
@@ -64,13 +70,43 @@ func GenerateResponse(content string, imageURLs []string) (*ChatCompletionRespon
 	return chat(joinContentAndImageDescription(content, imageDescription), nil)
 }
 
-func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
-	options := LLMOptions{
-		Vendor:  config.GetLLMVendor(),
-		BaseURL: config.GetLLMBaseUrl(),
-		APIKey:  config.GetLLMApiKey(),
-		Model:   config.GetLLMModel(),
+func LLMTest() {
+	supportImage := config.GetLLMSupportImage()
+	extraImageLLM := config.GetLLMExtraImageLLM()
+	fmt.Printf("支持图片: %v\n", supportImage)
+	fmt.Printf("额外图像处理大模型: %v\n", extraImageLLM)
+
+	fmt.Println("纯文本测试:")
+	textResp, err := callChatLLM(llmTestSystemPrompt, llmTestUserContent, chatOptions())
+	if err != nil {
+		fmt.Printf("失败: %v\n", err)
+	} else {
+		fmt.Printf("成功: %s\n", firstResponseContent(textResp))
+		printUsage(textResp)
 	}
+
+	fmt.Println("图片测试:")
+	if !supportImage {
+		fmt.Println("跳过: 配置不支持图片")
+		return
+	}
+
+	var imageResp *ChatCompletionResponse
+	if extraImageLLM {
+		imageResp, err = callResponseLLM(llmTestImagePrompt, llmTestImageContent, []string{llmTestImageURL}, imageOptions())
+	} else {
+		imageResp, err = callResponseLLM(llmTestImagePrompt, llmTestImageContent, []string{llmTestImageURL}, chatOptions())
+	}
+	if err != nil {
+		fmt.Printf("失败: %v\n", err)
+		return
+	}
+	fmt.Printf("成功: %s\n", firstResponseContent(imageResp))
+	printUsage(imageResp)
+}
+
+func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
+	options := chatOptions()
 
 	if len(imageURLs) == 0 {
 		return callChatLLM(systemPrompt, content, options)
@@ -78,13 +114,26 @@ func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
 	return callResponseLLM(systemPrompt, content, imageURLs, options)
 }
 
-func describeImages(imageURLs []string) (string, error) {
-	resp, err := callResponseLLM(imageDescriptionSystemPrompt, imageDescriptionUserPrompt, imageURLs, LLMOptions{
+func chatOptions() LLMOptions {
+	return LLMOptions{
+		Vendor:  config.GetLLMVendor(),
+		BaseURL: config.GetLLMBaseUrl(),
+		APIKey:  config.GetLLMApiKey(),
+		Model:   config.GetLLMModel(),
+	}
+}
+
+func imageOptions() LLMOptions {
+	return LLMOptions{
 		Vendor:  config.GetImageLLMVendor(),
 		BaseURL: config.GetImageLLMBaseUrl(),
 		APIKey:  config.GetImageLLMApiKey(),
 		Model:   config.GetImageLLMModel(),
-	})
+	}
+}
+
+func describeImages(imageURLs []string) (string, error) {
+	resp, err := callResponseLLM(imageDescriptionSystemPrompt, imageDescriptionUserPrompt, imageURLs, imageOptions())
 	if err != nil {
 		return "", fmt.Errorf("生成图片描述失败: %w", err)
 	}
@@ -140,6 +189,13 @@ func firstResponseContent(resp *ChatCompletionResponse) string {
 		return ""
 	}
 	return strings.TrimSpace(resp.Choices[0].Message.Content)
+}
+
+func printUsage(resp *ChatCompletionResponse) {
+	if resp == nil {
+		return
+	}
+	fmt.Printf("token 消耗: prompt=%d, completion=%d, total=%d\n", resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Usage.TotalTokens)
 }
 
 var systemPrompt = `你是一个社区机器人，在社区里你必须发言简短，因为没人喜欢长篇大论。你必须遵守国家法律，坚守道德底线。你可以玩梗，形象是风趣幽默`

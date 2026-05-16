@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"heybox-bot/config"
 	"heybox-bot/heybox"
+	"heybox-bot/llm"
 	"heybox-bot/logger"
 	"os"
 	"os/signal"
@@ -10,6 +12,9 @@ import (
 )
 
 func main() {
+	llmTest := flag.Bool("llm_test", false, "测试 LLM 配置")
+	flag.Parse()
+
 	if err := config.Load(); err != nil {
 		logger.OpenDefault()
 		defer logger.Close()
@@ -23,6 +28,11 @@ func main() {
 		MaxDay: config.GetLogMaxDay(),
 	})
 	defer logger.Close()
+
+	if *llmTest {
+		llm.LLMTest()
+		return
+	}
 
 	if err := heybox.Run(); err != nil {
 		logger.Error("机器人运行失败: %v", err)
