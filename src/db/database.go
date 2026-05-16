@@ -34,6 +34,9 @@ func Open() error {
 	if err != nil {
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}
+	if err := initMessage(db); err != nil {
+		return err
+	}
 
 	database = db
 	return nil
@@ -58,4 +61,14 @@ func Close() error {
 
 	database = nil
 	return nil
+}
+
+func getDatabase() (*gorm.DB, error) {
+	dbMu.Lock()
+	defer dbMu.Unlock()
+
+	if database == nil {
+		return nil, fmt.Errorf("数据库未打开")
+	}
+	return database, nil
 }
