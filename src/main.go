@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"heybox-bot/config"
+	"heybox-bot/db"
 	"heybox-bot/heybox"
 	"heybox-bot/llm"
 	"heybox-bot/logger"
@@ -33,6 +34,11 @@ func main() {
 		llm.LLMTest()
 		return
 	}
+
+	if err := db.Open(); err != nil {
+		logger.Fatal("打开数据库失败")
+	}
+	defer db.Close()
 
 	if err := heybox.Run(); err != nil {
 		logger.Error("机器人运行失败: %v", err)
