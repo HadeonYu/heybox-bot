@@ -29,6 +29,7 @@ type MessageArrangeResult struct {
 	LinkID          int64            `json:"link_id"`
 	RootCommentID   int64            `json:"root_comment_id"`
 	TargetCommentID int64            `json:"target_comment_id"`
+	TriggerContent  string           `json:"trigger_content"`
 	IsPost          bool             `json:"is_post"`
 	HasVideo        int              `json:"has_video"`
 	PostLink        *api.PostLink    `json:"post_link,omitempty"`
@@ -149,6 +150,7 @@ func arrangeUnreadAtMessage(msg api.Message) (MessageArrangeResult, error) {
 		LinkID:          msg.LinkID,
 		RootCommentID:   msg.RootCommentID,
 		TargetCommentID: msg.CommentID,
+		TriggerContent:  PlainHeyboxMentionText(msg.Text),
 		IsPost:          msg.IsPost,
 		HasVideo:        msg.HasVideo,
 	}

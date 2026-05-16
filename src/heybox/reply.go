@@ -2,9 +2,11 @@ package heybox
 
 import (
 	"fmt"
+	"heybox-bot/db"
 	"heybox-bot/heybox/api"
 	"heybox-bot/llm"
 	"heybox-bot/logger"
+	"strconv"
 	"strings"
 )
 
@@ -57,6 +59,9 @@ func replyOne(result MessageArrangeResult) error {
 	if err != nil {
 		return err
 	}
+	if err := insertReplyMessage(result, commentID, linkID, replyText, resp.Usage); err != nil {
+		return err
+	}
 	logReplySuccess(commentID, linkID, replyText, resp.Usage)
 	return nil
 }
@@ -95,6 +100,67 @@ func publishReply(result MessageArrangeResult, replyText string) (int64, int64, 
 
 	commentID, err := api.CommentReply(saved_sess.HeyboxID, linkID, rootID, replyID, replyText)
 	return commentID, linkID, err
+}
+
+func insertReplyMessage(result MessageArrangeResult, commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) error {
+	userID, err := strconv.ParseInt(result.User.UserID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("解析用户 ID %q 失败: %w", result.User.UserID, err)
+	}
+
+	message := &db.Message{
+		MessageID:       result.MessageID,
+		Status:          db.MessageStatusSuccess,
+		LinkID:          linkID,
+		UserID:          userID,
+		UserName:        result.User.Username,
+		IsPost:          result.IsPost,
+		TriggerID:       replyTriggerID(result, linkID),
+		TriggerContent:  replyTriggerContent(result),
+		CommentID:       commentID,
+		CommentContent:  replyText,
+		PromptToken:     int64(usage.PromptTokens),
+		CompletionToken: int64(usage.CompletionTokens),
+		CachedToken:     int64(usage.PromptTokensDetails.CachedTokens),
+		ReasoningToken:  int64(usage.CompletionTokensDetails.ReasoningTokens),
+		TotalToken:      int64(usage.TotalTokens),
+	}
+	if err := db.InsertMessage(message); err != nil {
+		return err
+	}
+	return nil
+}
+
+func replyTriggerID(result MessageArrangeResult, linkID int64) int64 {
+	if result.IsPost {
+		return linkID
+	}
+	if result.TargetCommentID != 0 {
+		return result.TargetCommentID
+	}
+	if result.TargetComment != nil {
+		return result.TargetComment.CommentID
+	}
+	if result.RootCommentID != 0 {
+		return result.RootCommentID
+	}
+	if result.RootComment != nil {
+		return result.RootComment.CommentID
+	}
+	return linkID
+}
+
+func replyTriggerContent(result MessageArrangeResult) string {
+	if result.IsPost && result.PostLink != nil {
+		return result.PostLink.Title
+	}
+	if result.TargetComment != nil {
+		return result.TargetComment.Text
+	}
+	if result.RootComment != nil {
+		return result.RootComment.Text
+	}
+	return result.TriggerContent
 }
 
 func logReplySuccess(commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) {
