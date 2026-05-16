@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const videoUnsupportedReply = "不支持带视频的消息 [cube_沧桑]"
+
 // reply 根据整理后的 @ 消息生成回复并发布到对应帖子或评论下。
 func reply(results []MessageArrangeResult) error {
 	if saved_sess == nil {
@@ -26,6 +28,15 @@ func reply(results []MessageArrangeResult) error {
 }
 
 func replyOne(result MessageArrangeResult) error {
+	if result.HasVideo != 0 {
+		commentID, linkID, err := publishReply(result, videoUnsupportedReply)
+		if err != nil {
+			return err
+		}
+		logReplySuccess(commentID, linkID, videoUnsupportedReply, llm.ChatCompletionUsage{})
+		return nil
+	}
+
 	if result.PostLink == nil {
 		return fmt.Errorf("帖子信息为空")
 	}
@@ -42,38 +53,48 @@ func replyOne(result MessageArrangeResult) error {
 		return fmt.Errorf("LLM 回复为空")
 	}
 
-	linkID := result.PostLink.LinkID
-	var commentID int64
-	if result.RootComment == nil {
-		commentID, err = api.CommentPost(saved_sess.HeyboxID, linkID, replyText)
-		if err != nil {
-			return err
-		}
-		logReplySuccess(commentID, linkID, replyText, resp.Usage)
-		return nil
-	}
-
-	rootID := result.RootComment.CommentID
-	replyID := rootID
-	if result.TargetComment != nil {
-		replyID = result.TargetComment.CommentID
-	}
-
-	if replyID == rootID {
-		commentID, err = api.CommentRoot(saved_sess.HeyboxID, linkID, rootID, replyText)
-		if err != nil {
-			return err
-		}
-		logReplySuccess(commentID, linkID, replyText, resp.Usage)
-		return nil
-	}
-
-	commentID, err = api.CommentReply(saved_sess.HeyboxID, linkID, rootID, replyID, replyText)
+	commentID, linkID, err := publishReply(result, replyText)
 	if err != nil {
 		return err
 	}
 	logReplySuccess(commentID, linkID, replyText, resp.Usage)
 	return nil
+}
+
+func publishReply(result MessageArrangeResult, replyText string) (int64, int64, error) {
+	linkID := result.LinkID
+	if linkID == 0 && result.PostLink != nil {
+		linkID = result.PostLink.LinkID
+	}
+	if linkID == 0 {
+		return 0, 0, fmt.Errorf("帖子 ID 为空")
+	}
+
+	if result.IsPost || result.RootCommentID == 0 {
+		commentID, err := api.CommentPost(saved_sess.HeyboxID, linkID, replyText)
+		return commentID, linkID, err
+	}
+
+	rootID := result.RootCommentID
+	if rootID == 0 && result.RootComment != nil {
+		rootID = result.RootComment.CommentID
+	}
+
+	replyID := result.TargetCommentID
+	if replyID == 0 && result.TargetComment != nil {
+		replyID = result.TargetComment.CommentID
+	}
+	if replyID == 0 {
+		replyID = rootID
+	}
+
+	if replyID == rootID {
+		commentID, err := api.CommentRoot(saved_sess.HeyboxID, linkID, rootID, replyText)
+		return commentID, linkID, err
+	}
+
+	commentID, err := api.CommentReply(saved_sess.HeyboxID, linkID, rootID, replyID, replyText)
+	return commentID, linkID, err
 }
 
 func logReplySuccess(commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) {

@@ -23,13 +23,17 @@ const (
 var heyboxMentionRe = regexp.MustCompile(`(?is)<a\b[^>]*\bdata-user-id\s*=\s*["'][^"']+["'][^>]*>(.*?)</a>\s*`)
 
 type MessageArrangeResult struct {
-	MessageID     int64            `json:"message_id"`
-	User          api.User         `json:"user"`
-	Timestamp     time.Time        `json:"timestamp"`
-	HasVideo      int              `json:"has_video"`
-	PostLink      *api.PostLink    `json:"post_link,omitempty"`
-	RootComment   *api.PostComment `json:"root_comment,omitempty"`
-	TargetComment *api.PostComment `json:"target_comment,omitempty"`
+	MessageID       int64            `json:"message_id"`
+	User            api.User         `json:"user"`
+	Timestamp       time.Time        `json:"timestamp"`
+	LinkID          int64            `json:"link_id"`
+	RootCommentID   int64            `json:"root_comment_id"`
+	TargetCommentID int64            `json:"target_comment_id"`
+	IsPost          bool             `json:"is_post"`
+	HasVideo        int              `json:"has_video"`
+	PostLink        *api.PostLink    `json:"post_link,omitempty"`
+	RootComment     *api.PostComment `json:"root_comment,omitempty"`
+	TargetComment   *api.PostComment `json:"target_comment,omitempty"`
 }
 
 // getAtMessageCb 定时拉取并整理未读 @ 消息。
@@ -139,10 +143,14 @@ func arrangeUnreadAtMessage(msg api.Message) (MessageArrangeResult, error) {
 	}
 
 	result := MessageArrangeResult{
-		MessageID: msg.MessageID,
-		User:      msg.User,
-		Timestamp: messageTime,
-		HasVideo:  msg.HasVideo,
+		MessageID:       msg.MessageID,
+		User:            msg.User,
+		Timestamp:       messageTime,
+		LinkID:          msg.LinkID,
+		RootCommentID:   msg.RootCommentID,
+		TargetCommentID: msg.CommentID,
+		IsPost:          msg.IsPost,
+		HasVideo:        msg.HasVideo,
 	}
 	defer normalizeMessageArrangeResultMentions(&result)
 
