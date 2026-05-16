@@ -115,6 +115,12 @@ func login() error {
 }
 
 func Run() error {
+	if err := initMetadata(); err != nil {
+		err = fmt.Errorf("初始化元数据失败: %v", err)
+		logger.Error("%v", err)
+		return err
+	}
+
 	if err := login(); err != nil {
 		err = fmt.Errorf("登录失败: %v", err)
 		logger.Error("%v", err)

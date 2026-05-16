@@ -9,7 +9,6 @@ import (
 	"html"
 	"math/rand"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,10 +21,6 @@ const (
 )
 
 var heyboxMentionRe = regexp.MustCompile(`(?is)<a\b[^>]*\bdata-user-id\s*=\s*["'][^"']+["'][^>]*>(.*?)</a>\s*`)
-
-type messageState struct {
-	LastAtMessageTimestamp float64 `json:"last_at_message_timestamp"`
-}
 
 type MessageArrangeResult struct {
 	MessageID     int64            `json:"message_id"`
@@ -345,49 +340,6 @@ func normalizeEscapedHeyboxMentionText(content string) string {
 		`\"`, `"`,
 	)
 	return replacer.Replace(content)
-}
-
-func loadLastAtMessageTimestamp() (float64, error) {
-	b, fromLegacy, err := readMetadataFile(messageStateFile, legacyMessageStateFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			now := float64(time.Now().Unix())
-			if err := saveLastAtMessageTimestamp(now); err != nil {
-				return 0, err
-			}
-			return now, nil
-		}
-		return 0, fmt.Errorf("读取消息状态失败: %w", err)
-	}
-
-	var state messageState
-	if err := json.Unmarshal(b, &state); err != nil {
-		return 0, fmt.Errorf("解析消息状态失败: %w", err)
-	}
-	if state.LastAtMessageTimestamp <= 0 {
-		state.LastAtMessageTimestamp = float64(time.Now().Unix())
-		if err := saveLastAtMessageTimestamp(state.LastAtMessageTimestamp); err != nil {
-			return 0, err
-		}
-	} else if fromLegacy {
-		if err := saveLastAtMessageTimestamp(state.LastAtMessageTimestamp); err != nil {
-			return 0, err
-		}
-	}
-
-	return state.LastAtMessageTimestamp, nil
-}
-
-func saveLastAtMessageTimestamp(timestamp float64) error {
-	state := messageState{LastAtMessageTimestamp: timestamp}
-	b, err := json.MarshalIndent(state, "", "\t")
-	if err != nil {
-		return fmt.Errorf("序列化消息状态失败: %w", err)
-	}
-	if err := writeMetadataFile(messageStateFile, b, 0o600); err != nil {
-		return fmt.Errorf("写入消息状态失败: %w", err)
-	}
-	return nil
 }
 
 func parseMessageTimestamp(timestamp string) (float64, error) {

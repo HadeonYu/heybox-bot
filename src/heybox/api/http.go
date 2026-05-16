@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,7 +23,11 @@ var httpClient = &http.Client{
 	Jar:     jar,
 }
 
-var cookieUpdateHandler func([]*http.Cookie)
+var (
+	cookieUpdateHandler func([]*http.Cookie)
+	deviceID            string
+	deviceIDMu          sync.RWMutex
+)
 
 type response struct {
 	Status  string          `json:"status"`
@@ -44,6 +49,18 @@ func SetCookies(cookies []*http.Cookie) {
 
 func SetCookieUpdateHandler(handler func([]*http.Cookie)) {
 	cookieUpdateHandler = handler
+}
+
+func SetDeviceID(id string) {
+	deviceIDMu.Lock()
+	defer deviceIDMu.Unlock()
+	deviceID = id
+}
+
+func getDeviceID() string {
+	deviceIDMu.RLock()
+	defer deviceIDMu.RUnlock()
+	return deviceID
 }
 
 func GetRequest(apiPath string, heyboxID string, extraQuery ...map[string]string) (*response, error) {
@@ -68,7 +85,7 @@ func request(method string, apiPath string, heyboxID string, values ...map[strin
 	q.Set("heybox_id", heyboxID)
 	q.Set("x_os_type", "Windows")
 	q.Set("device_info", "Chrome")
-	q.Set("device_id", "c9c3a9949776805cfef88c47ba350ba8")
+	q.Set("device_id", getDeviceID())
 	q.Set("hkey", hkey)
 	q.Set("_time", fmt.Sprintf("%d", ts))
 	q.Set("nonce", nonce)
