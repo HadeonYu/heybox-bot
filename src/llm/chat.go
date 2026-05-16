@@ -73,12 +73,17 @@ func GenerateResponse(content string, imageURLs []string) (*ChatCompletionRespon
 		return chat(content, imageURLs)
 	}
 
-	imageDescription, err := describeImages(imageURLs)
+	imageDescription, imageUsage, err := describeImages(imageURLs)
 	if err != nil {
 		return nil, err
 	}
 
-	return chat(joinContentAndImageDescription(content, imageDescription), nil)
+	resp, err := chat(joinContentAndImageDescription(content, imageDescription), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp.Usage = addChatCompletionUsage(resp.Usage, imageUsage)
+	return resp, nil
 }
 
 // LLMTest 按当前配置执行文本和图片模型连通性测试。
@@ -152,17 +157,17 @@ func imageOptions() LLMOptions {
 }
 
 // describeImages 使用图片模型将图片转换为文字描述。
-func describeImages(imageURLs []string) (string, error) {
+func describeImages(imageURLs []string) (string, ChatCompletionUsage, error) {
 	resp, err := callResponseLLM(imageDescriptionSystemPrompt, imageDescriptionUserPrompt, imageURLs, imageOptions())
 	if err != nil {
-		return "", fmt.Errorf("生成图片描述失败: %w", err)
+		return "", ChatCompletionUsage{}, fmt.Errorf("生成图片描述失败: %w", err)
 	}
 
 	content := firstResponseContent(resp)
 	if content == "" {
-		return "", fmt.Errorf("图片描述为空")
+		return "", ChatCompletionUsage{}, fmt.Errorf("图片描述为空")
 	}
-	return content, nil
+	return content, resp.Usage, nil
 }
 
 type LLMOptions struct {
@@ -229,6 +234,22 @@ func printUsage(resp *ChatCompletionResponse) {
 		return
 	}
 	fmt.Printf("token 消耗: prompt=%d, completion=%d, total=%d\n", resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Usage.TotalTokens)
+}
+
+func addChatCompletionUsage(a, b ChatCompletionUsage) ChatCompletionUsage {
+	return ChatCompletionUsage{
+		PromptTokens:     a.PromptTokens + b.PromptTokens,
+		CompletionTokens: a.CompletionTokens + b.CompletionTokens,
+		TotalTokens:      a.TotalTokens + b.TotalTokens,
+		PromptTokensDetails: PromptTokensDetails{
+			CachedTokens: a.PromptTokensDetails.CachedTokens + b.PromptTokensDetails.CachedTokens,
+		},
+		CompletionTokensDetails: CompletionTokensDetails{
+			ReasoningTokens: a.CompletionTokensDetails.ReasoningTokens + b.CompletionTokensDetails.ReasoningTokens,
+		},
+		PromptCacheHitTokens:  a.PromptCacheHitTokens + b.PromptCacheHitTokens,
+		PromptCacheMissTokens: a.PromptCacheMissTokens + b.PromptCacheMissTokens,
+	}
 }
 
 var systemPromptCache struct {
