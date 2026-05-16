@@ -71,10 +71,7 @@ func getAtMessageCb(timer *TimerContext) error {
 		}
 	}
 	logger.Info("已整理 %d 条未读 @ 消息", len(results))
-	for _, result := range results {
-		pretty, _ := json.MarshalIndent(result, "", "\t")
-		logger.Debug("整理结果: %v", string(pretty))
-	}
+	reply(results)
 	return nil
 }
 
