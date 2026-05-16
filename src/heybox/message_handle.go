@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"heybox-bot/config"
+	"heybox-bot/db"
 	"heybox-bot/heybox/api"
 	"heybox-bot/logger"
 	"html"
 	"math/rand"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -56,20 +58,61 @@ func getAtMessageCb(timer *TimerContext) error {
 		return nil
 	}
 
+	sortMessagesByTimestamp(unread)
 	timer.SetInterval(config.GetBotInitWaitTime())
-	results := make([]MessageArrangeResult, 0, len(unread))
+	processed := 0
 	for i, msg := range unread {
+		exists, err := db.MessageExists(msg.MessageID)
+		if err != nil {
+			return fmt.Errorf("查询消息 %d 处理记录失败: %w", msg.MessageID, err)
+		}
+		if exists {
+			logger.Debug("跳过已处理消息 %d", msg.MessageID)
+			if result, err := fallbackMessageArrangeResult(msg); err == nil {
+				if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+					return fmt.Errorf("更新消息 %d 处理时间失败: %w", msg.MessageID, saveErr)
+				}
+			}
+			continue
+		}
+
 		result, err := arrangeUnreadAtMessage(msg)
 		if err != nil {
-			return fmt.Errorf("整理未读 @ 消息 %d 失败: %w", msg.MessageID, err)
+			result, fallbackErr := fallbackMessageArrangeResult(msg)
+			if fallbackErr != nil {
+				return fallbackErr
+			}
+			if insertErr := insertErrorMessage(result, err); insertErr != nil {
+				return fmt.Errorf("记录消息 %d 整理失败状态失败: %w", msg.MessageID, insertErr)
+			}
+			logger.Error("整理未读 @ 消息 %d 失败: %v", msg.MessageID, err)
+			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
+			}
+			continue
 		}
-		results = append(results, result)
+		if err := reply([]MessageArrangeResult{result}); err != nil {
+			return err
+		}
+		processed++
 		if i < len(unread)-1 {
 			time.Sleep(messageFetchSleep)
 		}
 	}
-	logger.Info("已整理 %d 条未读 @ 消息", len(results))
-	return reply(results)
+	logger.Info("已处理 %d 条未读 @ 消息", processed)
+	return nil
+}
+
+// sortMessagesByTimestamp 按消息时间从旧到新排序，配合逐条落库推进处理进度。
+func sortMessagesByTimestamp(messages []api.Message) {
+	sort.SliceStable(messages, func(i, j int) bool {
+		left, leftErr := parseMessageTimestamp(messages[i].Timestamp)
+		right, rightErr := parseMessageTimestamp(messages[j].Timestamp)
+		if leftErr != nil || rightErr != nil {
+			return messages[i].MessageID < messages[j].MessageID
+		}
+		return left < right
+	})
 }
 
 // nextAtMessageInterval 根据当前间隔计算带随机波动的下一次检查间隔。
@@ -192,6 +235,26 @@ func arrangeUnreadAtMessage(msg api.Message) (MessageArrangeResult, error) {
 	}
 	result.TargetComment = target
 	return result, nil
+}
+
+// fallbackMessageArrangeResult 在无法完整整理消息时保留可用于落库去重的基础字段。
+func fallbackMessageArrangeResult(msg api.Message) (MessageArrangeResult, error) {
+	messageTime, err := parseMessageTime(msg.Timestamp)
+	if err != nil {
+		return MessageArrangeResult{}, fmt.Errorf("解析消息时间戳 %q 失败: %w", msg.Timestamp, err)
+	}
+
+	return MessageArrangeResult{
+		MessageID:       msg.MessageID,
+		User:            msg.User,
+		Timestamp:       messageTime,
+		LinkID:          msg.LinkID,
+		RootCommentID:   msg.RootCommentID,
+		TargetCommentID: msg.CommentID,
+		TriggerContent:  PlainHeyboxMentionText(msg.Text),
+		IsPost:          msg.IsPost,
+		HasVideo:        msg.HasVideo,
+	}, nil
 }
 
 // findRootComment 分页查找消息对应的根评论和评论分支。

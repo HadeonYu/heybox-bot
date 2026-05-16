@@ -20,7 +20,10 @@ func reply(results []MessageArrangeResult) error {
 
 	for _, result := range results {
 		if err := replyOne(result); err != nil {
-			return fmt.Errorf("回复消息 %d 失败: %w", result.MessageID, err)
+			if insertErr := insertErrorMessage(result, err); insertErr != nil {
+				return fmt.Errorf("记录消息 %d 失败状态失败: %w", result.MessageID, insertErr)
+			}
+			logger.Error("回复消息 %d 失败: %v", result.MessageID, err)
 		}
 		if err := saveLastAtMessageTime(result.Timestamp); err != nil {
 			return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, err)
@@ -33,6 +36,9 @@ func replyOne(result MessageArrangeResult) error {
 	if result.HasVideo != 0 {
 		commentID, linkID, err := publishReply(result, videoUnsupportedReply)
 		if err != nil {
+			return err
+		}
+		if err := insertRefusedMessage(result, commentID, linkID, videoUnsupportedReply); err != nil {
 			return err
 		}
 		logReplySuccess(commentID, linkID, videoUnsupportedReply, llm.ChatCompletionUsage{})
@@ -59,7 +65,7 @@ func replyOne(result MessageArrangeResult) error {
 	if err != nil {
 		return err
 	}
-	if err := insertReplyMessage(result, commentID, linkID, replyText, resp.Usage); err != nil {
+	if err := insertSuccessMessage(result, commentID, linkID, replyText, resp.Usage); err != nil {
 		return err
 	}
 	logReplySuccess(commentID, linkID, replyText, resp.Usage)
@@ -102,15 +108,36 @@ func publishReply(result MessageArrangeResult, replyText string) (int64, int64, 
 	return commentID, linkID, err
 }
 
-func insertReplyMessage(result MessageArrangeResult, commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) error {
+func insertSuccessMessage(result MessageArrangeResult, commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) error {
+	return insertMessage(result, db.MessageStatusSuccess, commentID, linkID, replyText, usage)
+}
+
+func insertRefusedMessage(result MessageArrangeResult, commentID, linkID int64, replyText string) error {
+	return insertMessage(result, db.MessageStatusRefused, commentID, linkID, replyText, llm.ChatCompletionUsage{})
+}
+
+func insertErrorMessage(result MessageArrangeResult, replyErr error) error {
+	linkID := result.LinkID
+	if result.PostLink != nil && result.PostLink.LinkID != 0 {
+		linkID = result.PostLink.LinkID
+	}
+
+	commentContent := ""
+	if replyErr != nil {
+		commentContent = replyErr.Error()
+	}
+	return insertMessage(result, db.MessageStatusError, 0, linkID, commentContent, llm.ChatCompletionUsage{})
+}
+
+func insertMessage(result MessageArrangeResult, status string, commentID, linkID int64, replyText string, usage llm.ChatCompletionUsage) error {
 	userID, err := strconv.ParseInt(result.User.UserID, 10, 64)
 	if err != nil {
-		return fmt.Errorf("解析用户 ID %q 失败: %w", result.User.UserID, err)
+		logger.Warn("解析用户 ID %q 失败: %v", result.User.UserID, err)
 	}
 
 	message := &db.Message{
 		MessageID:       result.MessageID,
-		Status:          db.MessageStatusSuccess,
+		Status:          status,
 		LinkID:          linkID,
 		UserID:          userID,
 		UserName:        result.User.Username,

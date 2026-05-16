@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -15,7 +16,7 @@ const (
 type Message struct {
 	MessageID int64 `gorm:"column:message_id;primaryKey;autoIncrement:false;not null" json:"message_id"`
 
-	Status string `gorm:"column:status;type:text;not null" json:"status"`
+	Status string `gorm:"column:status;type:text;not null;default:success" json:"status"`
 
 	LinkID   int64  `gorm:"column:link_id;not null" json:"link_id"`
 	UserID   int64  `gorm:"column:user_id;not null" json:"user_id"`
@@ -72,6 +73,24 @@ func InsertMessage(message *Message) error {
 		return fmt.Errorf("插入 message 记录失败: %w", err)
 	}
 	return nil
+}
+
+// MessageExists 判断指定 message_id 是否已有处理记录。
+func MessageExists(messageID int64) (bool, error) {
+	db, err := getDatabase()
+	if err != nil {
+		return false, err
+	}
+
+	var message Message
+	err = db.Select("message_id").First(&message, "message_id = ?", messageID).Error
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return false, fmt.Errorf("查询 message 记录失败: %w", err)
 }
 
 // DeleteMessage 按 message_id 删除一条消息处理记录。
