@@ -3,10 +3,14 @@ package heybox
 import (
 	"fmt"
 	"heybox-bot/logger"
+	"sync"
 	"time"
 )
 
-var scheduledJobs []*scheduledJob
+var (
+	scheduledJobs   []*scheduledJob
+	scheduledJobsMu sync.Mutex
+)
 
 type TimerCallback func(*TimerContext) error
 
@@ -58,13 +62,10 @@ func addTimer(name string, interval time.Duration, callback TimerCallback, immed
 		return fmt.Errorf("定时器回调为空")
 	}
 
-	runMu.Lock()
-	defer runMu.Unlock()
+	now := time.Now()
 
-	if stopCh != nil {
-		return fmt.Errorf("机器人运行后不能添加定时器")
-	}
-
+	scheduledJobsMu.Lock()
+	defer scheduledJobsMu.Unlock()
 	for _, job := range scheduledJobs {
 		if job.name == name {
 			return fmt.Errorf("定时器 %q 已存在", name)
@@ -74,6 +75,7 @@ func addTimer(name string, interval time.Duration, callback TimerCallback, immed
 	scheduledJobs = append(scheduledJobs, &scheduledJob{
 		name:      name,
 		interval:  interval,
+		nextRun:   nextRunTime(now, interval, immediate),
 		callback:  callback,
 		immediate: immediate,
 	})
@@ -81,22 +83,27 @@ func addTimer(name string, interval time.Duration, callback TimerCallback, immed
 	return nil
 }
 
-func cloneScheduledJobs() []*scheduledJob {
-	jobs := make([]*scheduledJob, 0, len(scheduledJobs))
-	now := time.Now()
-	for _, job := range scheduledJobs {
-		clone := *job
-		if clone.immediate {
-			clone.nextRun = now
-		} else {
-			clone.nextRun = now.Add(clone.interval)
-		}
-		jobs = append(jobs, &clone)
+func nextRunTime(now time.Time, interval time.Duration, immediate bool) time.Time {
+	if immediate {
+		return now
 	}
-	return jobs
+	return now.Add(interval)
 }
 
-func runLoop(stop <-chan struct{}, done chan<- struct{}, jobs []*scheduledJob) {
+func resetScheduledJobs() {
+	scheduledJobsMu.Lock()
+	defer scheduledJobsMu.Unlock()
+
+	now := time.Now()
+	for _, job := range scheduledJobs {
+		if job.stopped {
+			continue
+		}
+		job.nextRun = nextRunTime(now, job.interval, job.immediate)
+	}
+}
+
+func runLoop(stop <-chan struct{}, done chan<- struct{}) {
 	defer close(done)
 
 	ticker := time.NewTicker(time.Second)
@@ -108,18 +115,15 @@ func runLoop(stop <-chan struct{}, done chan<- struct{}, jobs []*scheduledJob) {
 			logger.Info("机器人已停止")
 			return
 		case <-ticker.C:
-			runDueJobs(jobs)
+			runDueJobs()
 		}
 	}
 }
 
-func runDueJobs(jobs []*scheduledJob) {
+func runDueJobs() {
 	now := time.Now()
+	jobs := dueJobs(now)
 	for _, job := range jobs {
-		if job.stopped || now.Before(job.nextRun) {
-			continue
-		}
-
 		ctx := &TimerContext{
 			Name: job.name,
 			task: job,
@@ -128,8 +132,24 @@ func runDueJobs(jobs []*scheduledJob) {
 			logger.Error("定时器 %q 回调执行失败: %v", job.name, err)
 		}
 
+		scheduledJobsMu.Lock()
 		if !job.stopped {
 			job.nextRun = time.Now().Add(job.interval)
 		}
+		scheduledJobsMu.Unlock()
 	}
+}
+
+func dueJobs(now time.Time) []*scheduledJob {
+	scheduledJobsMu.Lock()
+	defer scheduledJobsMu.Unlock()
+
+	jobs := make([]*scheduledJob, 0, len(scheduledJobs))
+	for _, job := range scheduledJobs {
+		if job.stopped || now.Before(job.nextRun) {
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs
 }

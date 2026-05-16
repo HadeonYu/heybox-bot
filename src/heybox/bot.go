@@ -134,10 +134,10 @@ func Run() error {
 	doneCh = make(chan struct{})
 	stop := stopCh
 	done := doneCh
-	jobs := cloneScheduledJobs()
+	resetScheduledJobs()
 	runMu.Unlock()
 
-	go runLoop(stop, done, jobs)
+	go runLoop(stop, done)
 
 	return nil
 }
