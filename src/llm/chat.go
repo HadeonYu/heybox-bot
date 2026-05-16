@@ -12,6 +12,8 @@ const (
 	llmVendorVolcengine = "volcengine"
 	llmVendorVolcano    = "volcano"
 	llmVendorArk        = "ark"
+	llmVendorKimi       = "kimi"
+	llmVendorMoonshot   = "moonshot"
 
 	llmTestSystemPrompt = "你是一个只能助手"
 	llmTestUserContent  = "你好"
@@ -158,6 +160,8 @@ func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCom
 		return OpenAICompletion(systemPrompt, userContent, options)
 	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
 		return VolcengineCompletion(systemPrompt, userContent, options)
+	case llmVendorKimi, llmVendorMoonshot:
+		return KimiCompletion(systemPrompt, userContent, options)
 	default:
 		return OpenAICompletion(systemPrompt, userContent, options)
 	}
@@ -169,6 +173,8 @@ func callResponseLLM(systemPrompt, userContent string, imageURLs []string, optio
 		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
 	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
 		return VolcengineResponse(systemPrompt, userContent, imageURLs, options)
+	case llmVendorKimi, llmVendorMoonshot:
+		return KimiResponse(systemPrompt, userContent, imageURLs, options)
 	default:
 		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
 	}
