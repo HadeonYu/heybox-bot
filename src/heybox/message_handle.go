@@ -3,6 +3,7 @@ package heybox
 import (
 	"encoding/json"
 	"fmt"
+	"heybox-bot/config"
 	"heybox-bot/heybox/api"
 	"heybox-bot/logger"
 	"html"
@@ -16,10 +17,8 @@ import (
 )
 
 const (
-	atMessageTimerName       = "getAtMsg"
-	atMessageInitialInterval = time.Minute
-	atMessageMaxInterval     = 4 * time.Minute
-	messageFetchSleep        = 350 * time.Millisecond
+	atMessageTimerName = "getAtMsg"
+	messageFetchSleep  = 1 * time.Second
 )
 
 var heyboxMentionRe = regexp.MustCompile(`(?is)<a\b[^>]*\bdata-user-id\s*=\s*["'][^"']+["'][^>]*>(.*?)</a>\s*`)
@@ -56,13 +55,13 @@ func getAtMessageCb(timer *TimerContext) error {
 	}
 
 	if len(unread) == 0 {
-		nextInterval := min(timer.Interval()*2, atMessageMaxInterval) + time.Duration(rand.Intn(31)-15)*time.Second // -15 ~ +15秒波动
+		nextInterval := nextAtMessageInterval(timer.Interval())
 		timer.SetInterval(nextInterval)
-		logger.Debug("没有未读 @ 消息，下次检查间隔: %v", nextInterval)
+		logger.Debug("没有未读 @ 消息，下次检查间隔: %.3f秒", nextInterval.Seconds())
 		return nil
 	}
 
-	timer.SetInterval(atMessageInitialInterval)
+	timer.SetInterval(config.GetBotInitWaitTime())
 	results := make([]MessageArrangeResult, 0, len(unread))
 	for i, msg := range unread {
 		result, err := arrangeUnreadAtMessage(msg)
@@ -81,6 +80,24 @@ func getAtMessageCb(timer *TimerContext) error {
 		logger.Debug("整理结果: %v", string(pretty))
 	}
 	return nil
+}
+
+func nextAtMessageInterval(current time.Duration) time.Duration {
+	initInterval := config.GetBotInitWaitTime()
+	maxInterval := config.GetBotMaxWaitTime()
+	nextInterval := min(current*2, maxInterval)
+	jitter := nextInterval / 5
+	if jitter > 0 {
+		nextInterval += time.Duration(rand.Int63n(int64(jitter)*2+1)) - jitter
+	}
+
+	if nextInterval < initInterval {
+		return initInterval
+	}
+	if nextInterval > maxInterval {
+		return maxInterval
+	}
+	return nextInterval
 }
 
 func getUnreadAtMessages(lastTimestamp float64) ([]api.Message, float64, error) {

@@ -3,6 +3,10 @@ log:
   level: "INFO"  # DEBUG, INFO, WARN, ERROR, FATAL
   max_day: 30  # 日志文件保留的天数
 
+bot:
+  init_wait_time: 10  # 消息轮询初始等待秒数
+  max_wait_time: 120  # 消息轮询最大等待秒数，不能小于 init_wait_time
+
 llm:
   support_image: true
   extra_image_llm: false

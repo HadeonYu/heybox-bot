@@ -2,6 +2,7 @@ package heybox
 
 import (
 	"fmt"
+	"heybox-bot/config"
 	"heybox-bot/heybox/api"
 	"heybox-bot/logger"
 	"os"
@@ -122,7 +123,7 @@ func Run() error {
 		logger.Info("登录成功")
 	}
 
-	if err := AddImmediateTimer(atMessageTimerName, atMessageInitialInterval, getAtMessageCb); err != nil {
+	if err := AddImmediateTimer(atMessageTimerName, config.GetBotInitWaitTime(), getAtMessageCb); err != nil {
 		logger.Error("添加定时器 %q 失败: %v", atMessageTimerName, err)
 	}
 	runMu.Lock()
