@@ -39,15 +39,9 @@ func getAtMessageCb(timer *TimerContext) error {
 		return err
 	}
 
-	unread, maxTimestamp, err := getUnreadAtMessages(lastTimestamp)
+	unread, _, err := getUnreadAtMessages(lastTimestamp)
 	if err != nil {
 		return err
-	}
-
-	if maxTimestamp > lastTimestamp {
-		if err := saveLastAtMessageTimestamp(maxTimestamp); err != nil {
-			return err
-		}
 	}
 
 	if len(unread) == 0 {
@@ -62,17 +56,15 @@ func getAtMessageCb(timer *TimerContext) error {
 	for i, msg := range unread {
 		result, err := arrangeUnreadAtMessage(msg)
 		if err != nil {
-			logger.Error("整理未读 @ 消息 %d 失败: %v", msg.MessageID, err)
-		} else {
-			results = append(results, result)
+			return fmt.Errorf("整理未读 @ 消息 %d 失败: %w", msg.MessageID, err)
 		}
+		results = append(results, result)
 		if i < len(unread)-1 {
 			time.Sleep(messageFetchSleep)
 		}
 	}
 	logger.Info("已整理 %d 条未读 @ 消息", len(results))
-	reply(results)
-	return nil
+	return reply(results)
 }
 
 // nextAtMessageInterval 根据当前间隔计算带随机波动的下一次检查间隔。

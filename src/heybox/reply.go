@@ -9,17 +9,20 @@ import (
 )
 
 // reply 根据整理后的 @ 消息生成回复并发布到对应帖子或评论下。
-func reply(results []MessageArrangeResult) {
+func reply(results []MessageArrangeResult) error {
 	if saved_sess == nil {
-		logger.Error("回复失败: 会话为空")
-		return
+		return fmt.Errorf("会话为空")
 	}
 
 	for _, result := range results {
 		if err := replyOne(result); err != nil {
-			logger.Error("回复消息 %d 失败: %v", result.MessageID, err)
+			return fmt.Errorf("回复消息 %d 失败: %w", result.MessageID, err)
+		}
+		if err := saveLastAtMessageTime(result.Timestamp); err != nil {
+			return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, err)
 		}
 	}
+	return nil
 }
 
 func replyOne(result MessageArrangeResult) error {

@@ -259,3 +259,8 @@ func saveLastAtMessageTimestamp(timestamp float64) error {
 	api.SetXHHTokenID(currentMetadata.XHHTokenID)
 	return nil
 }
+
+// saveLastAtMessageTime 保存上次成功处理 @ 消息的时间。
+func saveLastAtMessageTime(timestamp time.Time) error {
+	return saveLastAtMessageTimestamp(float64(timestamp.UnixNano()) / 1e9)
+}
