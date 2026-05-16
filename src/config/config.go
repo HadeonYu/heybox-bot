@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -13,8 +14,11 @@ func Load() error {
 	viper.SetConfigType("yaml")
 
 	viper.AutomaticEnv()
-	if err := viper.BindEnv("llm.api_key", "API_KEY"); err != nil {
+	if err := viper.BindEnv("llm.chat.api_key", "API_KEY"); err != nil {
 		return fmt.Errorf("绑定 API_KEY 环境变量失败: %w", err)
+	}
+	if err := viper.BindEnv("llm.image.api_key", "IMAGE_API_KEY"); err != nil {
+		return fmt.Errorf("绑定 IMAGE_API_KEY 环境变量失败: %w", err)
 	}
 
 	// 设置配置默认值或检查必填配置
@@ -29,16 +33,30 @@ func Load() error {
 	}
 
 	// llm
-	viper.SetDefault("llm.max_tokens", 4096)
-	viper.SetDefault("llm.thinking", true)
-	if viper.GetString("llm.base_url") == "" {
-		return fmt.Errorf("配置文件中 llm.base_url 为空")
+	viper.SetDefault("llm.support_image", true)
+	viper.SetDefault("llm.extra_image_llm", false)
+	viper.SetDefault("llm.chat.vendor", "openai")
+	viper.SetDefault("llm.image.vendor", "openai")
+	if viper.GetString("llm.chat.base_url") == "" {
+		return fmt.Errorf("配置文件中 llm.chat.base_url 为空")
 	}
-	if viper.GetString("llm.model") == "" {
-		return fmt.Errorf("配置文件中 llm.model 为空")
+	if viper.GetString("llm.chat.model") == "" {
+		return fmt.Errorf("配置文件中 llm.chat.model 为空")
 	}
-	if viper.GetString("llm.api_key") == "" {
-		return fmt.Errorf("配置文件或环境变量中 llm.api_key 为空")
+	if viper.GetString("llm.chat.api_key") == "" {
+		return fmt.Errorf("配置文件或环境变量中 llm.chat.api_key 为空")
+	}
+
+	if viper.GetBool("llm.extra_image_llm") {
+		if viper.GetString("llm.image.base_url") == "" {
+			return fmt.Errorf("配置文件中 llm.extra_image_llm 为 true 但是 llm.image.base_url 为空")
+		}
+		if viper.GetString("llm.image.model") == "" {
+			return fmt.Errorf("配置文件中 llm.extra_image_llm 为 true 但是 llm.image.model 为空")
+		}
+		if viper.GetString("llm.image.api_key") == "" {
+			return fmt.Errorf("配置文件或环境变量中 llm.extra_image_llm 为 true 但是 llm.image.api_key 为空")
+		}
 	}
 
 	viper.WatchConfig()
@@ -58,20 +76,32 @@ func GetLogMaxDay() int {
 
 // ------ llm --------
 func GetLLMBaseUrl() string {
-	return viper.GetString("llm.base_url")
+	return viper.GetString("llm.chat.base_url")
+}
+func GetLLMVendor() string {
+	return strings.ToLower(viper.GetString("llm.chat.vendor"))
 }
 func GetLLMModel() string {
-	return viper.GetString("llm.model")
+	return viper.GetString("llm.chat.model")
 }
 func GetLLMApiKey() string {
-	return viper.GetString("llm.api_key")
+	return viper.GetString("llm.chat.api_key")
 }
-func GetLLMMaxTokens() int {
-	return viper.GetInt("llm.max_tokens")
+func GetLLMSupportImage() bool {
+	return viper.GetBool("llm.support_image")
 }
-func GetLLMThinking() string {
-	if viper.GetBool("llm.thinking") {
-		return "enabled"
-	}
-	return "disabled"
+func GetLLMExtraImageLLM() bool {
+	return viper.GetBool("llm.extra_image_llm")
+}
+func GetImageLLMBaseUrl() string {
+	return viper.GetString("llm.image.base_url")
+}
+func GetImageLLMVendor() string {
+	return strings.ToLower(viper.GetString("llm.image.vendor"))
+}
+func GetImageLLMModel() string {
+	return viper.GetString("llm.image.model")
+}
+func GetImageLLMApiKey() string {
+	return viper.GetString("llm.image.api_key")
 }

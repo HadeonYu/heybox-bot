@@ -4,8 +4,15 @@ log:
   max_day: 30  # 日志文件保留的天数
 
 llm:
-  base_url: "填入你的base url"
-  model: "填入你的模型"
-  max_tokens: 4096
-  thinking: false
-  # api_key: 安全考虑，这项配置应该保存在环境变量中，而不是明文存放在配置文件里
+  support_image: true
+  extra_image_llm: false
+  chat:
+    vendor: "openai"  # 可选: openai, volcengine
+    base_url: "填入你的chat base url"
+    model: "填入你的chat模型"
+    # api_key: 安全考虑，这项配置应该保存在环境变量 API_KEY 中，而不是明文存放在配置文件里
+  image:
+    vendor: "openai"  # 可选: openai, volcengine
+    base_url: "填入你的image base url"
+    model: "填入你的image模型"
+    # api_key: 安全考虑，这项配置应该保存在环境变量 IMAGE_API_KEY 中，而不是明文存放在配置文件

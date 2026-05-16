@@ -1,13 +1,17 @@
 package llm
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"heybox-bot/config"
-	"heybox-bot/logger"
-	"io"
-	"net/http"
+	"strings"
+)
+
+const (
+	llmVendorOpenAI     = "openai"
+	llmVendorDeepSeek   = "deepseek"
+	llmVendorVolcengine = "volcengine"
+	llmVendorVolcano    = "volcano"
+	llmVendorArk        = "ark"
 )
 
 type ChatCompletionResponse struct {
@@ -43,69 +47,103 @@ type CompletionTokensDetails struct {
 	ReasoningTokens int `json:"reasoning_tokens"`
 }
 
-type chatCompletionRequest struct {
-	Messages       []ChatCompletionMessage `json:"messages"`
-	Model          string                  `json:"model"`
-	Thinking       map[string]string       `json:"thinking,omitempty"`
-	MaxTokens      int                     `json:"max_tokens"`
-	ResponseFormat map[string]string       `json:"response_format,omitempty"`
+func GenerateResponse(content string, imageURLs []string) (*ChatCompletionResponse, error) {
+	if !config.GetLLMSupportImage() {
+		imageURLs = nil
+	}
+
+	if len(imageURLs) == 0 || !config.GetLLMExtraImageLLM() {
+		return chat(content, imageURLs)
+	}
+
+	imageDescription, err := describeImages(imageURLs)
+	if err != nil {
+		return nil, err
+	}
+
+	return chat(joinContentAndImageDescription(content, imageDescription), nil)
 }
 
-func Chat(content string) (*ChatCompletionResponse, error) {
-	payload := chatCompletionRequest{
-		Messages: []ChatCompletionMessage{
-			{
-				Role:    "system",
-				Content: systemPrompt,
-			},
-			{
-				Role:    "user",
-				Content: content,
-			},
-		},
-		Model:          config.GetLLMModel(),
-		Thinking:       map[string]string{"type": config.GetLLMThinking()},
-		MaxTokens:      config.GetLLMMaxTokens(),
-		ResponseFormat: map[string]string{"type": "text"},
+func chat(content string, imageURLs []string) (*ChatCompletionResponse, error) {
+	options := LLMOptions{
+		Vendor:  config.GetLLMVendor(),
+		BaseURL: config.GetLLMBaseUrl(),
+		APIKey:  config.GetLLMApiKey(),
+		Model:   config.GetLLMModel(),
 	}
 
-	body, err := json.Marshal(payload)
+	if len(imageURLs) == 0 {
+		return callChatLLM(systemPrompt, content, options)
+	}
+	return callResponseLLM(systemPrompt, content, imageURLs, options)
+}
+
+func describeImages(imageURLs []string) (string, error) {
+	resp, err := callResponseLLM(imageDescriptionSystemPrompt, imageDescriptionUserPrompt, imageURLs, LLMOptions{
+		Vendor:  config.GetImageLLMVendor(),
+		BaseURL: config.GetImageLLMBaseUrl(),
+		APIKey:  config.GetImageLLMApiKey(),
+		Model:   config.GetImageLLMModel(),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("序列化请求失败: %w", err)
+		return "", fmt.Errorf("生成图片描述失败: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, config.GetLLMBaseUrl(), bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+	content := firstResponseContent(resp)
+	if content == "" {
+		return "", fmt.Errorf("图片描述为空")
 	}
+	return content, nil
+}
 
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", "Bearer "+config.GetLLMApiKey())
+type LLMOptions struct {
+	Vendor  string
+	BaseURL string
+	APIKey  string
+	Model   string
+}
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("发送请求失败: %w", err)
+func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
+	switch options.Vendor {
+	case "", llmVendorOpenAI, llmVendorDeepSeek:
+		return OpenAICompletion(systemPrompt, userContent, options)
+	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
+		return VolcengineCompletion(systemPrompt, userContent, options)
+	default:
+		return OpenAICompletion(systemPrompt, userContent, options)
 	}
-	defer res.Body.Close()
+}
 
-	respBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %w", err)
+func callResponseLLM(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
+	switch options.Vendor {
+	case "", llmVendorOpenAI, llmVendorDeepSeek:
+		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
+	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
+		return VolcengineResponse(systemPrompt, userContent, imageURLs, options)
+	default:
+		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
 	}
+}
 
-	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
-		logger.Error("请求失败，响应内容: %s", string(respBody))
-		return nil, fmt.Errorf("请求失败: %s", res.Status)
+func joinContentAndImageDescription(content, imageDescription string) string {
+	if strings.TrimSpace(imageDescription) == "" {
+		return content
 	}
-
-	var resp ChatCompletionResponse
-	if err := json.Unmarshal(respBody, &resp); err != nil {
-		logger.Error("解析响应失败响应内容: %s", string(respBody))
-		return nil, fmt.Errorf("解析响应失败: %w", err)
+	if strings.TrimSpace(content) == "" {
+		return "图片信息：\n" + imageDescription
 	}
+	return content + "\n\n图片信息：\n" + imageDescription
+}
 
-	return &resp, nil
+func firstResponseContent(resp *ChatCompletionResponse) string {
+	if resp == nil || len(resp.Choices) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(resp.Choices[0].Message.Content)
 }
 
 var systemPrompt = `你是一个社区机器人，在社区里你必须发言简短，因为没人喜欢长篇大论。你必须遵守国家法律，坚守道德底线。你可以玩梗，形象是风趣幽默`
+
+var imageDescriptionSystemPrompt = `你负责把图片转换成简短、准确的文字描述。只描述图片中和用户讨论可能相关的信息，不要编造。`
+
+var imageDescriptionUserPrompt = `请描述这些图片的主要内容，保留关键文字、人物、物体、场景和可能影响回复的信息。`
