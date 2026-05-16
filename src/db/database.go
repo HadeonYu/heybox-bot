@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
