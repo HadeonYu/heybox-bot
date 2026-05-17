@@ -12,6 +12,8 @@ import (
 	"syscall"
 )
 
+const Version = "v1.0.0"
+
 func main() {
 	llmTest := flag.Bool("llm_test", false, "测试 LLM 配置")
 	flag.Parse()
@@ -34,6 +36,8 @@ func main() {
 		llm.LLMTest()
 		return
 	}
+
+	logger.Info("版本号：%s", Version)
 
 	if err := db.Open(); err != nil {
 		logger.Fatal("打开数据库失败")
