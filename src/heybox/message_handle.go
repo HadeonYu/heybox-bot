@@ -54,7 +54,7 @@ func getAtMessageCb(timer *TimerContext) error {
 	if len(unread) == 0 {
 		nextInterval := nextAtMessageInterval(timer.Interval())
 		timer.SetInterval(nextInterval)
-		logger.Debug("没有未读 @ 消息，下次检查间隔: %.3f秒", nextInterval.Seconds())
+		logger.Info("没有未读 @ 消息，下次检查间隔: %.3f秒", nextInterval.Seconds())
 		return nil
 	}
 
