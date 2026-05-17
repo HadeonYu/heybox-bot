@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"heybox-bot/heybox/api"
 	"heybox-bot/logger"
+	"heybox-bot/metadata"
 	"net/http"
 )
 
@@ -39,7 +40,7 @@ func (s *session) save() error {
 		return fmt.Errorf("序列化会话失败: %w", err)
 	}
 
-	if err := writeMetadataFile(sessionFile, b, 0o600); err != nil {
+	if err := metadata.WriteFile(metadata.SessionFile, b, 0o600); err != nil {
 		return fmt.Errorf("写入会话文件失败: %w", err)
 	}
 
@@ -90,7 +91,7 @@ func updateSavedSessionCookies(cookies []*http.Cookie) {
 
 // loadSession 从元数据目录读取并恢复会话。
 func loadSession() (*session, error) {
-	b, fromLegacy, err := readMetadataFile(sessionFile, legacySessionFile)
+	b, fromLegacy, err := metadata.ReadFile(metadata.SessionFile, metadata.LegacySessionFile)
 	if err != nil {
 		return nil, fmt.Errorf("读取会话文件失败: %w", err)
 	}

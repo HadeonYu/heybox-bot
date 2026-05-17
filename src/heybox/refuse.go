@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"heybox-bot/config"
 	"heybox-bot/logger"
+	"heybox-bot/metadata"
 	"slices"
 	"strconv"
 )
@@ -14,7 +15,7 @@ func cleanupUserCallTimesCb(_ *TimerContext) error {
 	if config.GetBotMode() != config.BotModeFrequency {
 		return nil
 	}
-	if err := cleanupUserCallTimes(); err != nil {
+	if err := metadata.CleanupUserCallTimes(); err != nil {
 		return err
 	}
 	logger.Debug("已清理过期用户调用频率记录")
@@ -24,7 +25,7 @@ func cleanupUserCallTimesCb(_ *TimerContext) error {
 // shouldRefuseService 判断指定用户是否不在服务白名单中。
 func shouldRefuseService(userID string) (bool, error) {
 	if config.GetBotMode() == config.BotModeFrequency {
-		count, err := recordUserCall(userID)
+		count, err := metadata.RecordUserCall(userID)
 		if err != nil {
 			return false, err
 		}
