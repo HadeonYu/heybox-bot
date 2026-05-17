@@ -137,7 +137,7 @@ func Run() error {
 	if err := AddImmediateTimer(atMessageTimerName, config.GetBotInitWaitTime(), getAtMessageCb); err != nil {
 		logger.Error("添加定时器 %q 失败: %v", atMessageTimerName, err)
 	}
-	if err := initRefuseTimer(); err != nil {
+	if err := AddTimer(refuseFrequencyTimerName, time.Minute, cleanupUserCallTimesCb); err != nil {
 		logger.Error("初始化拒绝服务定时器失败: %v", err)
 	}
 	runMu.Lock()

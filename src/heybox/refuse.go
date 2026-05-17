@@ -6,20 +6,14 @@ import (
 	"heybox-bot/logger"
 	"slices"
 	"strconv"
-	"time"
 )
 
 const refuseFrequencyTimerName = "refuseFrequency"
 
-// initRefuseTimer 初始化拒绝服务相关定时器。
-func initRefuseTimer() error {
+func cleanupUserCallTimesCb(_ *TimerContext) error {
 	if config.GetBotMode() != config.BotModeFrequency {
 		return nil
 	}
-	return AddTimer(refuseFrequencyTimerName, time.Minute, decreaseUserCallCountsCb)
-}
-
-func decreaseUserCallCountsCb(_ *TimerContext) error {
 	if err := cleanupUserCallTimes(); err != nil {
 		return err
 	}
