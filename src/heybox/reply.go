@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	whiteListRefusedReply = "抱歉，你不在白名单中 [cube_摘墨镜]"
-	frequencyRefusedReply = "请求频率超过了设定值 [cube_哭泣]"
+	whiteListRefusedReply = "抱歉，你不在白名单中"
+	frequencyRefusedReply = "请求频率超过了设定值"
 	videoUnsupportedReply = "不支持带视频的消息 [cube_沧桑]"
 )
 
@@ -43,15 +43,12 @@ func replyOne(result MessageArrangeResult) error {
 		return err
 	}
 	if refused {
-		replyText := refusedReplyText()
-		commentID, linkID, err := publishReply(result, replyText)
-		if err != nil {
+		reason := refusedReplyText()
+		linkID := replyLinkID(result)
+		if err := insertRefusedMessage(result, 0, linkID, reason); err != nil {
 			return err
 		}
-		if err := insertRefusedMessage(result, commentID, linkID, replyText); err != nil {
-			return err
-		}
-		logReplySuccess(commentID, linkID, replyText, llm.ChatCompletionUsage{})
+		logger.Info("拒绝服务: message_id=%d, user_id=%s, user_name: %s, link_id=%d, reason=%q", result.MessageID, result.User.UserID, result.User.Username, linkID, reason)
 		return nil
 	}
 
@@ -101,11 +98,18 @@ func refusedReplyText() string {
 	return whiteListRefusedReply
 }
 
-func publishReply(result MessageArrangeResult, replyText string) (int64, int64, error) {
-	linkID := result.LinkID
-	if linkID == 0 && result.PostLink != nil {
-		linkID = result.PostLink.LinkID
+func replyLinkID(result MessageArrangeResult) int64 {
+	if result.LinkID != 0 {
+		return result.LinkID
 	}
+	if result.PostLink != nil {
+		return result.PostLink.LinkID
+	}
+	return 0
+}
+
+func publishReply(result MessageArrangeResult, replyText string) (int64, int64, error) {
+	linkID := replyLinkID(result)
 	if linkID == 0 {
 		return 0, 0, fmt.Errorf("帖子 ID 为空")
 	}
