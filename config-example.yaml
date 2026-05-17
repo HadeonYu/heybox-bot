@@ -1,7 +1,7 @@
 log:
   path: "log/"  # 日志路径，不建议更改
   level: "INFO"  # DEBUG, INFO, WARN, ERROR, FATAL
-  max_day: 30  # 日志文件保留的天数
+  max_day: 7  # 日志文件保留的天数
 
 bot:
   mode: "white_list"  # 可选: white_list, frequency
