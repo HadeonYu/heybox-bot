@@ -7,3 +7,4 @@ QRcode.png
 bin
 encrypt.go
 database/
+package/
