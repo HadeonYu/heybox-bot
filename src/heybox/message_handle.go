@@ -76,6 +76,38 @@ func getAtMessageCb(timer *TimerContext) error {
 			continue
 		}
 
+		refused, err := shouldRefuseService(msg.User.UserID)
+		if err != nil {
+			result, fallbackErr := fallbackMessageArrangeResult(msg)
+			if fallbackErr != nil {
+				return fallbackErr
+			}
+			if insertErr := insertErrorMessage(result, err); insertErr != nil {
+				return fmt.Errorf("记录消息 %d 拒绝判断失败状态失败: %w", msg.MessageID, insertErr)
+			}
+			logger.Error("判断消息 %d 是否拒绝服务失败: %v", msg.MessageID, err)
+			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
+			}
+			continue
+		}
+		if refused {
+			result, fallbackErr := fallbackMessageArrangeResult(msg)
+			if fallbackErr != nil {
+				return fallbackErr
+			}
+			reason := refusedReplyText()
+			linkID := replyLinkID(result)
+			if insertErr := insertRefusedMessage(result, 0, linkID, reason); insertErr != nil {
+				return fmt.Errorf("记录消息 %d 拒绝服务状态失败: %w", msg.MessageID, insertErr)
+			}
+			logger.Info("拒绝服务: message_id=%d, user_id=%s, user_name=%s, link_id=%d, reason=%q", result.MessageID, result.User.UserID, result.User.Username, linkID, reason)
+			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
+			}
+			continue
+		}
+
 		result, err := arrangeUnreadAtMessage(msg)
 		if err != nil {
 			result, fallbackErr := fallbackMessageArrangeResult(msg)

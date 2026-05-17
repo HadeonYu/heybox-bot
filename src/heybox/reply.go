@@ -38,20 +38,6 @@ func reply(results []MessageArrangeResult) error {
 }
 
 func replyOne(result MessageArrangeResult) error {
-	refused, err := shouldRefuseService(result.User.UserID)
-	if err != nil {
-		return err
-	}
-	if refused {
-		reason := refusedReplyText()
-		linkID := replyLinkID(result)
-		if err := insertRefusedMessage(result, 0, linkID, reason); err != nil {
-			return err
-		}
-		logger.Info("拒绝服务: message_id=%d, user_id=%s, user_name: %s, link_id=%d, reason=%q", result.MessageID, result.User.UserID, result.User.Username, linkID, reason)
-		return nil
-	}
-
 	if result.HasVideo != 0 {
 		commentID, linkID, err := publishReply(result, videoUnsupportedReply)
 		if err != nil {
