@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-const Version = "v1.0.0"
+const Version = "v1.0.1"
 
 func main() {
 	llmTest := flag.Bool("llm_test", false, "测试 LLM 配置")
@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 
-	logger.Info("版本号：%s", Version)
+	logger.Info("heybox-bot 版本：%s", Version)
 
 	if err := db.Open(); err != nil {
 		logger.Fatal("打开数据库失败")
