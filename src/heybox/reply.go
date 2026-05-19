@@ -66,6 +66,7 @@ func replyOne(result MessageArrangeResult) error {
 	if replyText == "" {
 		return fmt.Errorf("LLM 回复为空")
 	}
+	logger.Info("成功调用大模型获得响应")
 
 	commentID, linkID, err := publishReply(result, replyText)
 	if err != nil {

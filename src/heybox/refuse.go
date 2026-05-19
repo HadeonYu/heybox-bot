@@ -18,7 +18,7 @@ func cleanupUserCallTimesCb(_ *TimerContext) error {
 	if err := metadata.CleanupUserCallTimes(); err != nil {
 		return err
 	}
-	logger.Debug("已清理过期用户调用频率记录")
+	logger.Info("已清理过期用户调用频率记录")
 	return nil
 }
 
