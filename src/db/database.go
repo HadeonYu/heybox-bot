@@ -8,6 +8,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const databasePath = "./database/heybox.db"
@@ -30,7 +31,9 @@ func Open() error {
 		return fmt.Errorf("创建数据库目录失败: %w", err)
 	}
 
-	db, err := gorm.Open(sqlite.Open(databasePath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(databasePath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return fmt.Errorf("打开数据库失败: %w", err)
 	}

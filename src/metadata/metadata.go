@@ -1,4 +1,4 @@
-package heybox
+package metadata
 
 import (
 	"crypto/md5"
@@ -16,8 +16,8 @@ import (
 
 const (
 	metadataDir       = "metadata"
-	sessionFile       = metadataDir + "/session.json"
-	legacySessionFile = "session.json"
+	SessionFile       = metadataDir + "/session.json"
+	LegacySessionFile = "session.json"
 	metadataFile      = metadataDir + "/metadata.json"
 	metadataTimeFmt   = time.DateTime
 	frequencyWindow   = time.Minute
@@ -36,8 +36,22 @@ type metadata struct {
 	XHHTokenID        string             `json:"x_xhh_tokenid"`
 }
 
-// readMetadataFile 读取元数据文件并在需要时回退读取旧路径。
-func readMetadataFile(path, legacyPath string) ([]byte, bool, error) {
+// init 加载或初始化全局元数据并设置 API 设备 ID。
+func init() {
+	metadataMu.Lock()
+	defer metadataMu.Unlock()
+
+	md, err := loadMetadataLocked()
+	if err != nil {
+		panic(fmt.Errorf("初始化元数据失败: %w", err))
+	}
+	currentMetadata = md
+	api.SetDeviceID(md.DeviceID)
+	api.SetXHHTokenID(md.XHHTokenID)
+}
+
+// ReadFile 读取元数据文件并在需要时回退读取旧路径。
+func ReadFile(path, legacyPath string) ([]byte, bool, error) {
 	b, err := os.ReadFile(path)
 	if err == nil || !os.IsNotExist(err) || legacyPath == "" {
 		return b, false, err
@@ -50,27 +64,12 @@ func readMetadataFile(path, legacyPath string) ([]byte, bool, error) {
 	return b, true, nil
 }
 
-// writeMetadataFile 创建元数据目录并写入指定文件内容。
-func writeMetadataFile(path string, b []byte, perm os.FileMode) error {
+// WriteFile 创建元数据目录并写入指定文件内容。
+func WriteFile(path string, b []byte, perm os.FileMode) error {
 	if err := os.MkdirAll(metadataDir, 0o700); err != nil {
 		return fmt.Errorf("创建元数据目录失败: %w", err)
 	}
 	return os.WriteFile(path, b, perm)
-}
-
-// initMetadata 加载或初始化全局元数据并设置 API 设备 ID。
-func initMetadata() error {
-	metadataMu.Lock()
-	defer metadataMu.Unlock()
-
-	md, err := loadMetadataLocked()
-	if err != nil {
-		return err
-	}
-	currentMetadata = md
-	api.SetDeviceID(md.DeviceID)
-	api.SetXHHTokenID(md.XHHTokenID)
-	return nil
 }
 
 // loadMetadataLocked 在持锁状态下读取或创建 metadata.json。
@@ -218,7 +217,7 @@ func saveMetadataLocked(md *metadata) error {
 	if err != nil {
 		return fmt.Errorf("序列化元数据失败: %w", err)
 	}
-	if err := writeMetadataFile(metadataFile, b, 0o600); err != nil {
+	if err := WriteFile(metadataFile, b, 0o600); err != nil {
 		return fmt.Errorf("写入元数据失败: %w", err)
 	}
 	return nil
@@ -240,8 +239,8 @@ func parseMetadataTimestamp(timestamp string) (float64, error) {
 	return float64(t.Unix()), nil
 }
 
-// loadLastAtMessageTimestamp 读取上次处理 @ 消息的时间戳。
-func loadLastAtMessageTimestamp() (float64, error) {
+// LoadLastAtMessageTimestamp 读取上次处理 @ 消息的时间戳。
+func LoadLastAtMessageTimestamp() (float64, error) {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
 
@@ -257,8 +256,8 @@ func loadLastAtMessageTimestamp() (float64, error) {
 	return parseMetadataTimestamp(currentMetadata.LastAtMessageTime)
 }
 
-// saveLastAtMessageTimestamp 保存上次处理 @ 消息的时间戳。
-func saveLastAtMessageTimestamp(timestamp float64) error {
+// SaveLastAtMessageTimestamp 保存上次处理 @ 消息的时间戳。
+func SaveLastAtMessageTimestamp(timestamp float64) error {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
 
@@ -278,13 +277,13 @@ func saveLastAtMessageTimestamp(timestamp float64) error {
 	return nil
 }
 
-// saveLastAtMessageTime 保存上次成功处理 @ 消息的时间。
-func saveLastAtMessageTime(timestamp time.Time) error {
-	return saveLastAtMessageTimestamp(float64(timestamp.UnixNano()) / 1e9)
+// SaveLastAtMessageTime 保存上次成功处理 @ 消息的时间。
+func SaveLastAtMessageTime(timestamp time.Time) error {
+	return SaveLastAtMessageTimestamp(float64(timestamp.UnixNano()) / 1e9)
 }
 
-// recordUserCall 记录指定用户调用时间，并返回最近一分钟内的调用次数。
-func recordUserCall(userID string) (int, error) {
+// RecordUserCall 记录指定用户调用时间，并返回最近一分钟内的调用次数。
+func RecordUserCall(userID string) (int, error) {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
 
@@ -309,8 +308,8 @@ func recordUserCall(userID string) (int, error) {
 	return len(calls), nil
 }
 
-// cleanupUserCallTimes 清理所有用户过期调用时间，列表为空后删除用户项。
-func cleanupUserCallTimes() error {
+// CleanupUserCallTimes 清理所有用户过期调用时间，列表为空后删除用户项。
+func CleanupUserCallTimes() error {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
 

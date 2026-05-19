@@ -7,6 +7,7 @@ import (
 	"heybox-bot/heybox/api"
 	"heybox-bot/llm"
 	"heybox-bot/logger"
+	"heybox-bot/metadata"
 	"strconv"
 	"strings"
 )
@@ -30,7 +31,7 @@ func reply(results []MessageArrangeResult) error {
 			}
 			logger.Error("回复消息 %d 失败: %v", result.MessageID, err)
 		}
-		if err := saveLastAtMessageTime(result.Timestamp); err != nil {
+		if err := metadata.SaveLastAtMessageTime(result.Timestamp); err != nil {
 			return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, err)
 		}
 	}
@@ -65,6 +66,7 @@ func replyOne(result MessageArrangeResult) error {
 	if replyText == "" {
 		return fmt.Errorf("LLM 回复为空")
 	}
+	logger.Info("成功调用大模型获得响应")
 
 	commentID, linkID, err := publishReply(result, replyText)
 	if err != nil {

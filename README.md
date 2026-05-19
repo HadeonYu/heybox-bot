@@ -1,11 +1,20 @@
 # heybot-bot 小黑盒机器人
 
 特性：
-1. 支持配置一个纯文本模型和额外一个图片理解模型
-2. 支持白名单和频率限制两种模式
-3. 支持配置和系统提示词热更新
-4. 支持字节火山引擎、kimi、anthropic、deepseek、openai和其他兼容openai的大模型厂商
-5. 支持空闲时自动退避，降低无效请求频率
+
+✅️支持配置一个纯文本模型和额外一个图片理解模型
+
+✅️支持白名单和频率限制两种模式
+
+✅️支持配置和系统提示词热更新
+
+✅️支持字节火山引擎、kimi、anthropic、deepseek、openai、小米mimo和其他兼容openai的大模型厂商
+
+✅️支持空闲时自动退避，降低无效请求频率
+
+TODO：
+- [ ] 主动刷帖、评论
+- [ ] webui界面
 
 ## 0. 声明
 > 本项目仅供学习交流使用, 用户如何使用与作者无关
@@ -17,27 +26,11 @@
 
 ## 2. 使用方法
 ### 2.1 下载Release
-在右边的release界面选择自己的系统架构的发行版，下载并解压。
+在右边的[Release界面](https://github.com/HadeonYu/heybox-bot/releases)选择自己的系统架构的发行版，下载并解压。
 
 目前的发行版有：x86-64架构的Windows和Linux系统、arm64架构的MacOS系统（Apple Silicon）。如有需要，可以参考下文 [参与开发](#3-参与开发)自行编译适合自己系统的可执行文件。
 ### 2.2 填入配置
 配置存放在 `config.yaml` 文件中，请参考 [配置说明](./src/config/README.md) 填写自己的配置
-
-填写完成后可以执行以下命令验证AI配置（和其他配置）是否正确：
-- Linux/MacOS：
-```bash
-./heybox-bot --llm_test
-```
-- Windows:
-1. 在文件资源管理器打开解压后的文件夹，点击文件夹路径后面的空白部分：
-![windows进入cmd-step1](./assets/windows进入cmd-step1.png)
-2. 输出cmd并按回车：
-![windows进入cmd-step1](./assets/windows进入cmd-step2.png)
-3. 在弹出的命令提示符窗口中执行：
-```cmd
-.\heybox-bot.exe --llm_test
-```
-如果输出结果不正确，请根据输出修改配置
 
 ### 2.3 启动
 第一次启动需要扫码登录。Linux/MacOS系统可以扫终端输出的二维码，也可以扫生成的QRcode.png
@@ -64,12 +57,12 @@ doc: 文档相关
 ```
 ### 3.1 项目结构
 ```
-.
-├── Makefile    编译、打包工具
-├── bin    可执行文件
-├── config-example.yaml    配置文件
-├── metadata    运行时信息
-├── package     release文件
+heybox-bot
+├── Makefile               编译、打包工具
+├── bin                    可执行文件
+├── config-example.yaml    配置文件示例
+├── metadata               运行时信息
+├── package                release文件
 ├── src
 │   ├── go.mod
 │   ├── go.sum
@@ -78,8 +71,9 @@ doc: 文档相关
 │   ├── heybox    机器人源码
 │   ├── llm       大模型厂商适配
 │   ├── logger    日志
+│   ├── metadata  运行时信息
 │   └── main.go   入库函数
-├── system_prompt.md
+└── system_prompt.md 系统提示词
 ```
 ### 3.2 开发环境
 - golang 1.23.0及以上版本
@@ -94,7 +88,7 @@ bot用定时器实现功能，定时器源码见 `src/heybox/job.go` 。可以�
 2. 在 `src/llm/chat.go` 中根据配置中的 `vendor` 分发
 
 ### 3.4 编译，运行，打包
-先把 `config-example.yaml` 复制一份，重命名为 `config.yaml`，随后参考一下指令：
+先把 `config-example.yaml` 复制一份，重命名为 `config.yaml`，随后参考以下指令：
 ```bash
 # 编译：
 make
@@ -102,12 +96,12 @@ make
 # 编译并运行
 make run
 
-# 后台运行（仅Linux/MacOS）
+# 后台运行（仅 Linux/MacOS）
 make run_detach
 
-# 退出后台运行（仅Linux/MacOS）
+# 退出后台运行（仅 Linux/MacOS）
 make exit
 
-# 打包发行（需要配置tar和zip）
+# 打包发行（仅 Linux/MaxOS）
 make release
 ```

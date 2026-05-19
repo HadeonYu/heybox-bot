@@ -118,14 +118,8 @@ func login() error {
 	return nil
 }
 
-// Run 初始化元数据、登录账号并启动机器人后台循环。
+// Run 登录账号并启动机器人后台循环。
 func Run() error {
-	if err := initMetadata(); err != nil {
-		err = fmt.Errorf("初始化元数据失败: %v", err)
-		logger.Error("%v", err)
-		return err
-	}
-
 	if err := login(); err != nil {
 		err = fmt.Errorf("登录失败: %v", err)
 		logger.Error("%v", err)

@@ -7,6 +7,7 @@ import (
 	"heybox-bot/db"
 	"heybox-bot/heybox/api"
 	"heybox-bot/logger"
+	"heybox-bot/metadata"
 	"html"
 	"math/rand"
 	"net/url"
@@ -41,7 +42,7 @@ type MessageArrangeResult struct {
 
 // getAtMessageCb 定时拉取并整理未读 @ 消息。
 func getAtMessageCb(timer *TimerContext) error {
-	lastTimestamp, err := loadLastAtMessageTimestamp()
+	lastTimestamp, err := metadata.LoadLastAtMessageTimestamp()
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func getAtMessageCb(timer *TimerContext) error {
 	if len(unread) == 0 {
 		nextInterval := nextAtMessageInterval(timer.Interval())
 		timer.SetInterval(nextInterval)
-		logger.Debug("没有未读 @ 消息，下次检查间隔: %.3f秒", nextInterval.Seconds())
+		logger.Info("没有未读 @ 消息，下次检查间隔: %.3f秒", nextInterval.Seconds())
 		return nil
 	}
 
@@ -69,7 +70,7 @@ func getAtMessageCb(timer *TimerContext) error {
 		if exists {
 			logger.Debug("跳过已处理消息 %d", msg.MessageID)
 			if result, err := fallbackMessageArrangeResult(msg); err == nil {
-				if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+				if saveErr := metadata.SaveLastAtMessageTime(result.Timestamp); saveErr != nil {
 					return fmt.Errorf("更新消息 %d 处理时间失败: %w", msg.MessageID, saveErr)
 				}
 			}
@@ -86,7 +87,7 @@ func getAtMessageCb(timer *TimerContext) error {
 				return fmt.Errorf("记录消息 %d 拒绝判断失败状态失败: %w", msg.MessageID, insertErr)
 			}
 			logger.Error("判断消息 %d 是否拒绝服务失败: %v", msg.MessageID, err)
-			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+			if saveErr := metadata.SaveLastAtMessageTime(result.Timestamp); saveErr != nil {
 				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
 			}
 			continue
@@ -102,7 +103,7 @@ func getAtMessageCb(timer *TimerContext) error {
 				return fmt.Errorf("记录消息 %d 拒绝服务状态失败: %w", msg.MessageID, insertErr)
 			}
 			logger.Info("拒绝服务: message_id=%d, user_id=%s, user_name=%s, link_id=%d, reason=%q", result.MessageID, result.User.UserID, result.User.Username, linkID, reason)
-			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+			if saveErr := metadata.SaveLastAtMessageTime(result.Timestamp); saveErr != nil {
 				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
 			}
 			continue
@@ -118,7 +119,7 @@ func getAtMessageCb(timer *TimerContext) error {
 				return fmt.Errorf("记录消息 %d 整理失败状态失败: %w", msg.MessageID, insertErr)
 			}
 			logger.Error("整理未读 @ 消息 %d 失败: %v", msg.MessageID, err)
-			if saveErr := saveLastAtMessageTime(result.Timestamp); saveErr != nil {
+			if saveErr := metadata.SaveLastAtMessageTime(result.Timestamp); saveErr != nil {
 				return fmt.Errorf("更新消息 %d 处理时间失败: %w", result.MessageID, saveErr)
 			}
 			continue
