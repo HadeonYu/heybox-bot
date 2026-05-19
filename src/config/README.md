@@ -129,17 +129,58 @@ bot:
 | `llm.image.model` | string | 无 | 图片模型名称 |
 | `llm.image.api_key` | string | 环境变量 `IMAGE_API_KEY` | 图片模型 API Key。建议使用环境变量 |
 
-### 4.3 供应商
+### 4.3 base url 填写注意事项
+各大厂商的api文档中，一般会有 `curl` 和 `python` 的调用示例，这两个调用示例用的 base url 一般不一样。填写配置时，**请填入 `python` 示例的 base url**。
+
+以小米的mimo api文档为例，文档中，`curl` 调用示例：
+```bash
+# openai api兼容
+curl --location --request POST 'https://api.xiaomimimo.com/v1/chat/completions' \
+--header "api-key: $MIMO_API_KEY" \
+# ......
+
+# anthropic api 兼容
+curl --location --request POST 'https://api.xiaomimimo.com/anthropic/v1/messages' \
+--header "api-key: $MIMO_API_KEY" \
+# ......
+```
+`python` 调用示例：
+```python
+# openai api兼容
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ.get("MIMO_API_KEY"),
+    base_url="https://api.xiaomimimo.com/v1"
+)
+# ......
+
+# anthropic api 兼容
+import os
+from anthropic import Anthropic
+
+client = Anthropic(
+    api_key=os.environ.get("MIMO_API_KEY"),
+    base_url="https://api.xiaomimimo.com/anthropic"
+)
+# ......
+```
+
+base url 应该填 `https://api.xiaomimimo.com/v1`（openai兼容） 或 `https://api.xiaomimimo.com/anthropic`（anthropic兼容），而不是 `curl` 示例中带有 `/chat/completions` 或 `/v1/messages` 后缀的url。
+
+### 4.4 供应商
 `llm.chat.vendor` 和 `llm.image.verndor` 目前支持的值有（不区分大小写）：
 
-1. `openai`：openai的api，以及所有兼容openai api 供应商
+1. `openai`：openai的api，非openai官方但是兼容openai api的，请直接填 `""`（留空）
 2. `anthropic`/`claude`：anthropic api
-3. `deepseek`: deepseek api，要求用openai的base url，如果用anthropic的base url，vendor需填写 `anthropic`
+3. `deepseek`: deepseek api，用openai的baseurl或anthropic格式的url都行
 4. `kimi`/`moonshot`：kimi api
 5. `volcengine`/`volcano`/`ark`：字节火山引擎
-6. 其他值或不填：默认调用openai的sdk，请确保供应商的api兼容openai格式
+6. `mimo`:：小米mimo api，用openai的baseurl或anthropic格式的url都行
+7. 其他值或不填：默认按openai兼容调用 `/chat/completions` 接口，请确保供应商的api兼容openai格式
 
-### 4.4 单模型配置
+### 4.5 单模型配置
 
 如果你有一个多模态的模型，可以只配置 `llm.chat`，并保持
 `llm.extra_image_llm: false`。
@@ -156,7 +197,7 @@ llm:
 
 如果你只有一个纯文本模型，请把 `llm.support_image` 设为 `false`
 
-### 4.5 独立多模态模型配置
+### 4.6 独立多模态模型配置
 
 如果希望图片处理使用另一个模型，将 `llm.extra_image_llm` 设为 `true`，并补全
 `llm.image` 配置。
@@ -174,6 +215,24 @@ llm:
     base_url: "https://api.openai.com/v1"
     model: "gpt-4.1-mini"
 ```
+
+### 4.7 检查配置
+
+填写完成后可以执行以下命令验证AI配置（和其他配置）是否正确：
+- Linux/MacOS：
+```bash
+./heybox-bot --llm_test
+```
+- Windows:
+1. 在文件资源管理器打开解压后的文件夹，点击文件夹路径后面的空白部分：
+![windows进入cmd-step1](../../assets/windows进入cmd-step1.png)
+2. 输出cmd并按回车：
+![windows进入cmd-step1](../../assets/windows进入cmd-step2.png)
+3. 在弹出的命令提示符窗口中执行：
+```cmd
+.\heybox-bot.exe --llm_test
+```
+如果输出结果不正确，请根据输出修改配置
 
 ## 5. 热更新
 
