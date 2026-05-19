@@ -98,6 +98,8 @@ func setDefaults() {
 	viper.SetDefault("bot.frequency", 3)
 	viper.SetDefault("llm.support_image", true)
 	viper.SetDefault("llm.extra_image_llm", false)
+	viper.SetDefault("llm.chat.verdor", "")
+	viper.SetDefault("llm.image.verdor", "")
 }
 
 func loadRuntimeConfig() (*runtimeConfig, error) {

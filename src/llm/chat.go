@@ -13,6 +13,7 @@ import (
 const (
 	llmVendorOpenAI     = "openai"
 	llmVendorDeepSeek   = "deepseek"
+	llmVendorMimo       = "mimo"
 	llmVendorVolcengine = "volcengine"
 	llmVendorVolcano    = "volcano"
 	llmVendorArk        = "ark"
@@ -180,7 +181,7 @@ type LLMOptions struct {
 // callChatLLM 根据厂商选择纯文本聊天模型实现。
 func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
-	case llmVendorDeepSeek:
+	case llmVendorDeepSeek, llmVendorMimo:
 		if isAnthropicBaseURL(options.BaseURL) {
 			return AnthropicCompletion(systemPrompt, userContent, options)
 		}
@@ -209,11 +210,11 @@ func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCom
 // callResponseLLM 根据厂商选择支持图片输入的模型实现。
 func callResponseLLM(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
-	case llmVendorDeepSeek:
+	case llmVendorDeepSeek, llmVendorMimo:
 		if isAnthropicBaseURL(options.BaseURL) {
 			return AnthropicResponse(systemPrompt, userContent, imageURLs, options)
 		}
-		return DefaultCompletion(systemPrompt, userContent, options)
+		return DefaultResponse(systemPrompt, userContent, imageURLs, options)
 
 	case llmVendorOpenAI:
 		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
