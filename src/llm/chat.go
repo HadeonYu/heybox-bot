@@ -180,33 +180,63 @@ type LLMOptions struct {
 // callChatLLM 根据厂商选择纯文本聊天模型实现。
 func callChatLLM(systemPrompt, userContent string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
-	case "", llmVendorOpenAI, llmVendorDeepSeek:
+	case llmVendorDeepSeek:
+		if isAnthropicBaseURL(options.BaseURL) {
+			return AnthropicCompletion(systemPrompt, userContent, options)
+		}
+		return DefaultCompletion(systemPrompt, userContent, options)
+
+	case llmVendorOpenAI:
 		return OpenAICompletion(systemPrompt, userContent, options)
+
 	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
 		return VolcengineCompletion(systemPrompt, userContent, options)
+
 	case llmVendorKimi, llmVendorMoonshot:
 		return KimiCompletion(systemPrompt, userContent, options)
+
 	case llmVendorAnthropic, llmVendorClaude:
 		return AnthropicCompletion(systemPrompt, userContent, options)
+
+	case "":
+		return DefaultCompletion(systemPrompt, userContent, options)
+
 	default:
-		return OpenAICompletion(systemPrompt, userContent, options)
+		return DefaultCompletion(systemPrompt, userContent, options)
 	}
 }
 
 // callResponseLLM 根据厂商选择支持图片输入的模型实现。
 func callResponseLLM(systemPrompt, userContent string, imageURLs []string, options LLMOptions) (*ChatCompletionResponse, error) {
 	switch options.Vendor {
-	case "", llmVendorOpenAI, llmVendorDeepSeek:
+	case llmVendorDeepSeek:
+		if isAnthropicBaseURL(options.BaseURL) {
+			return AnthropicResponse(systemPrompt, userContent, imageURLs, options)
+		}
+		return DefaultCompletion(systemPrompt, userContent, options)
+
+	case llmVendorOpenAI:
 		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
+
 	case llmVendorVolcengine, llmVendorVolcano, llmVendorArk:
 		return VolcengineResponse(systemPrompt, userContent, imageURLs, options)
+
 	case llmVendorKimi, llmVendorMoonshot:
 		return KimiResponse(systemPrompt, userContent, imageURLs, options)
+
 	case llmVendorAnthropic, llmVendorClaude:
 		return AnthropicResponse(systemPrompt, userContent, imageURLs, options)
+
+	case "":
+		return DefaultResponse(systemPrompt, userContent, imageURLs, options)
+
 	default:
-		return OpenAIResponse(systemPrompt, userContent, imageURLs, options)
+		return DefaultResponse(systemPrompt, userContent, imageURLs, options)
 	}
+}
+
+func isAnthropicBaseURL(baseURL string) bool {
+	return strings.HasSuffix(strings.TrimRight(baseURL, "/"), "/anthropic")
 }
 
 // joinContentAndImageDescription 将原始文本和图片描述合并为模型输入。
