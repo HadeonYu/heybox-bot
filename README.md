@@ -72,7 +72,7 @@ heybox-bot
 │   ├── llm       大模型厂商适配
 │   ├── logger    日志
 │   ├── metadata  运行时信息
-│   └── main.go   入库函数
+│   └── cmd       可执行文件入口函数
 └── system_prompt.md 系统提示词
 ```
 ### 3.2 开发环境

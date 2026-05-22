@@ -1,4 +1,5 @@
 PROJ_NAME := heybox-bot
+VERSION ?= v1.0.1
 
 GO ?= go
 ROOT_DIR := $(CURDIR)
@@ -22,17 +23,21 @@ else
 	MKDIR_P = mkdir -p "$@"
 endif
 
-TARGET_NATIVE := $(BIN_DIR)/$(PROJ_NAME)$(NATIVE_EXT)
+TARGET_MAIN := $(PROJ_NAME)
+TARGET_MAIN_DIR := $(SRC_DIR)/cmd/$(TARGET_MAIN)
+GO_LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
+
+TARGET_NATIVE := $(BIN_DIR)/$(TARGET_MAIN)$(NATIVE_EXT)
 
 # 交叉编译
 LINUX_AMD64_DIR    := $(BIN_DIR)/linux-amd64
-TARGET_LINUX_AMD64 := $(LINUX_AMD64_DIR)/$(PROJ_NAME)
+TARGET_MAIN_LINUX_AMD64 := $(LINUX_AMD64_DIR)/$(TARGET_MAIN)
 
 WINDOWS_AMD64_DIR    := $(BIN_DIR)/windows-amd64
-TARGET_WINDOWS_AMD64 := $(WINDOWS_AMD64_DIR)/$(PROJ_NAME).exe
+TARGET_MAIN_WINDOWS_AMD64 := $(WINDOWS_AMD64_DIR)/$(TARGET_MAIN).exe
 
 MACOS_ARM64_DIR      := $(BIN_DIR)/macos-arm64
-TARGET_MACOS_ARM64   := $(MACOS_ARM64_DIR)/$(PROJ_NAME)
+TARGET_MAIN_MACOS_ARM64   := $(MACOS_ARM64_DIR)/$(TARGET_MAIN)
 
 PACKAGE_LINUX_AMD64   := $(PACKAGE_DIR)/$(PROJ_NAME)-linux-amd64.tar.gz
 PACKAGE_WINDOWS_AMD64 := $(PACKAGE_DIR)/$(PROJ_NAME)-windows-amd64.zip
@@ -43,33 +48,33 @@ default: build
 # 编译宿主机平台可执行文件
 build: | $(BIN_DIR)
 	@echo "[INFO] building native $(PROJ_NAME)"
-	@cd $(SRC_DIR) && $(GO) build -o $(TARGET_NATIVE) .
+	@cd $(TARGET_MAIN_DIR) && $(GO) build $(GO_LDFLAGS) -o $(TARGET_NATIVE) .
 	@echo "[INFO] finish building $(PROJ_NAME): $(TARGET_NATIVE)"
 
 # 编译linux amd64可执行文件
 linux-amd64: | $(LINUX_AMD64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for linux/amd64"
-	@cd $(SRC_DIR) && GOOS=linux GOARCH=amd64 $(GO) build -o $(TARGET_LINUX_AMD64) .
-	@echo "[INFO] finish: $(TARGET_LINUX_AMD64)"
+	@cd $(TARGET_MAIN_DIR) && GOOS=linux GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_LINUX_AMD64) .
+	@echo "[INFO] finish: $(TARGET_MAIN_LINUX_AMD64)"
 
 # 编译windows amd64 可执行文件
 windows-amd64: | $(WINDOWS_AMD64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for windows/amd64"
-	@cd $(SRC_DIR) && GOOS=windows GOARCH=amd64 $(GO) build -o $(TARGET_WINDOWS_AMD64) .
-	@echo "[INFO] finish: $(TARGET_WINDOWS_AMD64)"
+	@cd $(TARGET_MAIN_DIR) && GOOS=windows GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_WINDOWS_AMD64) .
+	@echo "[INFO] finish: $(TARGET_MAIN_WINDOWS_AMD64)"
 
 # 编译 macOS Apple Silicon 可执行文件
 macos-arm64: | $(MACOS_ARM64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for darwin/arm64"
-	@cd $(SRC_DIR) && GOOS=darwin GOARCH=arm64 $(GO) build -o $(TARGET_MACOS_ARM64) .
-	@echo "[INFO] finish: $(TARGET_MACOS_ARM64)"
+	@cd $(TARGET_MAIN_DIR) && GOOS=darwin GOARCH=arm64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_MACOS_ARM64) .
+	@echo "[INFO] finish: $(TARGET_MAIN_MACOS_ARM64)"
 
 # 打包 linux amd64 release
 package-linux-amd64: linux-amd64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@echo "[INFO] packaging $(PROJ_NAME) for linux/amd64"
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64
-	@install -m 755 $(TARGET_LINUX_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/$(PROJ_NAME)
+	@install -m 755 $(TARGET_MAIN_LINUX_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/$(PROJ_NAME)
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/config.yaml
 	@tar -C $(PACKAGE_STAGING_DIR) -czf $(PACKAGE_LINUX_AMD64) $(PROJ_NAME)-linux-amd64
@@ -84,7 +89,7 @@ package-windows-amd64: windows-amd64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@echo "[INFO] packaging $(PROJ_NAME) for windows/amd64"
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64
-	@install -m 755 $(TARGET_WINDOWS_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/$(PROJ_NAME).exe
+	@install -m 755 $(TARGET_MAIN_WINDOWS_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/$(PROJ_NAME).exe
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/config.yaml
 	@cd $(PACKAGE_STAGING_DIR) && zip -qr $(abspath $(PACKAGE_WINDOWS_AMD64)) $(PROJ_NAME)-windows-amd64
@@ -95,7 +100,7 @@ package-macos-arm64: macos-arm64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@echo "[INFO] packaging $(PROJ_NAME) for darwin/arm64"
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64
-	@install -m 755 $(TARGET_MACOS_ARM64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/$(PROJ_NAME)
+	@install -m 755 $(TARGET_MAIN_MACOS_ARM64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/$(PROJ_NAME)
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/config.yaml
 	@tar -C $(PACKAGE_STAGING_DIR) -czf $(PACKAGE_MACOS_ARM64) $(PROJ_NAME)-macos-arm64
@@ -122,7 +127,7 @@ run_detach attach exit:
 	@exit 1
 else
 
-# Run in detached screen session (requires 'screen')
+# 用screen后台运行，不支持windows
 run_detach: build
 	@if ! command -v screen >/dev/null 2>&1; then \
 		echo "ERROR: 'screen' is not installed. Please install 'screen' and retry."; \
@@ -136,7 +141,7 @@ run_detach: build
 	@screen -dmS $(SESSION) $(TARGET_NATIVE)
 	@echo "[INFO] started. Use 'make attach' to attach, 'make exit' to stop."
 
-# Attach to the running screen session
+# 进入screen的终端
 attach:
 	@if ! command -v screen >/dev/null 2>&1; then \
 		echo "ERROR: 'screen' is not installed."; \
@@ -148,7 +153,7 @@ attach:
 	fi
 	@screen -r $(SESSION)
 
-# Quit the detached screen session
+# 退出后台运行
 exit:
 	@if ! command -v screen >/dev/null 2>&1; then \
 		echo "ERROR: 'screen' is not installed."; \

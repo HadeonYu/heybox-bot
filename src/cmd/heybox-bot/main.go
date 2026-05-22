@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-const Version = "v1.0.1"
+var Version = "dev"
 
 func main() {
 	llmTest := flag.Bool("llm_test", false, "测试 LLM 配置")
