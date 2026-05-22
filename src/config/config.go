@@ -79,6 +79,11 @@ func Load() error {
 		}
 		storeRuntimeConfig(cfg)
 		logger.Info("配置热更新成功: %s", event.Name)
+		logger.ApplyOptions(logger.Options{
+			Path:   cfg.LogPath,
+			Level:  cfg.LogLevel,
+			MaxDay: cfg.LogMaxDay,
+		})
 		logBotMode(cfg)
 	})
 	viper.WatchConfig()

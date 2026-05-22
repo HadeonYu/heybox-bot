@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	stdlog "log"
 	"os"
 	"path/filepath"
@@ -79,7 +81,7 @@ func OpenDefault() {
 	})
 }
 
-func Open(options Options) {
+func normalizeOptions(options Options) Options {
 	if options.Path == "" {
 		options.Path = logPath
 	}
@@ -89,7 +91,11 @@ func Open(options Options) {
 	if options.MaxDay <= 0 {
 		options.MaxDay = 7
 	}
+	return options
+}
 
+func Open(options Options) {
+	options = normalizeOptions(options)
 	minLevel = parseLevel(options.Level)
 	dir := options.Path
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -104,6 +110,22 @@ func Open(options Options) {
 		rotatelogs.WithRotationTime(24*time.Hour),
 		rotatelogs.WithMaxAge(time.Duration(options.MaxDay)*24*time.Hour),
 		rotatelogs.WithRotationCount(0),
+		rotatelogs.WithHandler(rotatelogs.HandlerFunc(func(e rotatelogs.Event) {
+			if e.Type() != rotatelogs.FileRotatedEventType {
+				return
+			}
+
+			rotated, ok := e.(*rotatelogs.FileRotatedEvent)
+			if !ok {
+				return
+			}
+			if err := compressLogFile(rotated.PreviousFile()); err != nil {
+				stdlog.Printf("压缩日志失败: %v", err)
+			}
+			if err := cleanupCompressedLogs(dir, options.MaxDay); err != nil {
+				stdlog.Printf("清理压缩日志失败: %v", err)
+			}
+		})),
 	)
 	if err != nil {
 		panic(fmt.Errorf("初始化日志失败: %w", err))
@@ -116,6 +138,30 @@ func Open(options Options) {
 	// 终端logger，带颜色输出
 	termOut := colorable.NewColorableStdout()
 	termLogger = stdlog.New(termOut, "", stdlog.LstdFlags)
+
+	if err := compressExistingLogs(dir, fileSink.CurrentFileName()); err != nil {
+		stdlog.Printf("压缩已有日志失败: %v", err)
+	}
+	if err := cleanupCompressedLogs(dir, options.MaxDay); err != nil {
+		stdlog.Printf("清理压缩日志失败: %v", err)
+	}
+}
+
+func ApplyOptions(options Options) {
+	options = normalizeOptions(options)
+	minLevel = parseLevel(options.Level)
+
+	dir := options.Path
+	currentFile := ""
+	if fileSink != nil {
+		currentFile = fileSink.CurrentFileName()
+	}
+	if err := compressExistingLogs(dir, currentFile); err != nil {
+		stdlog.Printf("压缩已有日志失败: %v", err)
+	}
+	if err := cleanupCompressedLogs(dir, options.MaxDay); err != nil {
+		stdlog.Printf("清理压缩日志失败: %v", err)
+	}
 }
 
 // Close 关闭logger
@@ -124,6 +170,145 @@ func Close() {
 		_ = fileSink.Close()
 		fileSink = nil
 	}
+}
+
+func compressLogFile(path string) error {
+	if path == "" || strings.HasSuffix(path, ".gz") {
+		return nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	gzPath := path + ".gz"
+	if _, err := os.Stat(gzPath); err == nil {
+		return os.Remove(path)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	in, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer in.Close()
+
+	tmpPath := gzPath + ".tmp"
+	out, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+
+	gz := gzip.NewWriter(out)
+	_, copyErr := io.Copy(gz, in)
+	closeErr := gz.Close()
+	fileCloseErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmpPath)
+		return copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return closeErr
+	}
+	if fileCloseErr != nil {
+		_ = os.Remove(tmpPath)
+		return fileCloseErr
+	}
+
+	if err := os.Rename(tmpPath, gzPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+
+	if err := os.Chtimes(gzPath, info.ModTime(), info.ModTime()); err != nil {
+		return err
+	}
+
+	return os.Remove(path)
+}
+
+func compressExistingLogs(dir, currentFile string) error {
+	if currentFile != "" {
+		absCurrentFile, err := filepath.Abs(currentFile)
+		if err != nil {
+			return err
+		}
+		currentFile = absCurrentFile
+	}
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.log"))
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		base := filepath.Base(file)
+		if base == "current.log" {
+			continue
+		}
+
+		absFile, err := filepath.Abs(file)
+		if err != nil {
+			return err
+		}
+		if currentFile != "" && absFile == currentFile {
+			continue
+		}
+
+		if err := compressLogFile(file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanupCompressedLogs(dir string, maxDay int) error {
+	files, err := filepath.Glob(filepath.Join(dir, "*.log.gz"))
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		expired, err := compressedLogExpired(file, maxDay)
+		if err != nil {
+			return err
+		}
+		if expired {
+			if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func compressedLogExpired(path string, maxDay int) (bool, error) {
+	cutoff := time.Now().Add(-time.Duration(maxDay) * 24 * time.Hour)
+	base := filepath.Base(path)
+	datePart := strings.TrimSuffix(base, ".log.gz")
+	if t, err := time.ParseInLocation("2006-01-02", datePart, time.Local); err == nil {
+		return t.Before(cutoff), nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return info.ModTime().Before(cutoff), nil
 }
 
 func callerInfo(skip int) string {
