@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"heybox-bot/config"
 	"heybox-bot/db"
 	"heybox-bot/heybox"
 	"heybox-bot/llm"
 	"heybox-bot/logger"
+	"heybox-bot/metadata"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,7 +18,13 @@ var Version = "dev"
 
 func main() {
 	llmTest := flag.Bool("llm_test", false, "测试 LLM 配置")
+	version := flag.Bool("version", false, "输出版本号")
 	flag.Parse()
+
+	if *version {
+		fmt.Println(Version)
+		return
+	}
 
 	if err := config.Load(); err != nil {
 		logger.OpenDefault()
@@ -31,6 +39,11 @@ func main() {
 		MaxDay: config.GetLogMaxDay(),
 	})
 	defer logger.Close()
+
+	if err := metadata.Init(); err != nil {
+		logger.Fatal("初始化元数据失败: %v", err)
+		return
+	}
 
 	if *llmTest {
 		llm.LLMTest()

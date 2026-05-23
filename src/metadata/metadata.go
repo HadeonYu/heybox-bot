@@ -36,18 +36,19 @@ type metadata struct {
 	XHHTokenID        string             `json:"x_xhh_tokenid"`
 }
 
-// init 加载或初始化全局元数据并设置 API 设备 ID。
-func init() {
+// Init 加载或初始化全局元数据并设置 API 设备 ID。
+func Init() error {
 	metadataMu.Lock()
 	defer metadataMu.Unlock()
 
 	md, err := loadMetadataLocked()
 	if err != nil {
-		panic(fmt.Errorf("初始化元数据失败: %w", err))
+		return fmt.Errorf("初始化元数据失败: %w", err)
 	}
 	currentMetadata = md
 	api.SetDeviceID(md.DeviceID)
 	api.SetXHHTokenID(md.XHHTokenID)
+	return nil
 }
 
 // ReadFile 读取元数据文件并在需要时回退读取旧路径。
