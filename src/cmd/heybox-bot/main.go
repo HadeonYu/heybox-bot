@@ -9,6 +9,7 @@ import (
 	"heybox-bot/llm"
 	"heybox-bot/logger"
 	"heybox-bot/metadata"
+	"heybox-bot/update"
 	"os"
 	"os/signal"
 	"syscall"
@@ -50,7 +51,7 @@ func main() {
 		return
 	}
 
-	logger.Info("heybox-bot 版本：%s", Version)
+	logVersion()
 
 	if err := db.Open(); err != nil {
 		logger.Fatal("打开数据库失败")
@@ -69,4 +70,20 @@ func main() {
 	sig := <-sigCh
 	logger.Info("收到退出信号: %v", sig)
 	heybox.Stop()
+}
+
+func logVersion() {
+	result, err := update.CheckWithCurrentVersion(Version)
+	if err != nil {
+		logger.Warn("检查更新失败: %v", err)
+		logger.Info("heybox-bot 版本：%s", Version)
+		return
+	}
+
+	if result.NeedUpdate {
+		logger.Info("heybox-bot 版本：%s，发现新版本：%s", Version, result.LatestVersion)
+		return
+	}
+
+	logger.Info("heybox-bot 版本：%s", Version)
 }

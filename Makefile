@@ -1,5 +1,5 @@
 PROJ_NAME := heybox-bot
-VERSION ?= v1.0.1
+VERSION ?= v1.1.0
 
 GO ?= go
 ROOT_DIR := $(CURDIR)
