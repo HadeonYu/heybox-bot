@@ -25,25 +25,25 @@ endif
 
 TARGET_MAIN := $(PROJ_NAME)
 TARGET_MAIN_DIR := $(SRC_DIR)/cmd/$(TARGET_MAIN)
-TARGET_UPDATE := $(PROJ_NAME)-update
-TARGET_UPDATE_DIR := $(SRC_DIR)/cmd/$(TARGET_UPDATE)
+# TARGET_UPDATE := $(PROJ_NAME)-update
+# TARGET_UPDATE_DIR := $(SRC_DIR)/cmd/$(TARGET_UPDATE)
 GO_LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
 TARGET_NATIVE := $(BIN_DIR)/$(TARGET_MAIN)$(NATIVE_EXT)
-TARGET_UPDATE_NATIVE := $(BIN_DIR)/$(TARGET_UPDATE)$(NATIVE_EXT)
+# TARGET_UPDATE_NATIVE := $(BIN_DIR)/$(TARGET_UPDATE)$(NATIVE_EXT)
 
 # 交叉编译
 LINUX_AMD64_DIR    := $(BIN_DIR)/linux-amd64
 TARGET_MAIN_LINUX_AMD64 := $(LINUX_AMD64_DIR)/$(TARGET_MAIN)
-TARGET_UPDATE_LINUX_AMD64 := $(LINUX_AMD64_DIR)/$(TARGET_UPDATE)
+# TARGET_UPDATE_LINUX_AMD64 := $(LINUX_AMD64_DIR)/$(TARGET_UPDATE)
 
 WINDOWS_AMD64_DIR    := $(BIN_DIR)/windows-amd64
 TARGET_MAIN_WINDOWS_AMD64 := $(WINDOWS_AMD64_DIR)/$(TARGET_MAIN).exe
-TARGET_UPDATE_WINDOWS_AMD64 := $(WINDOWS_AMD64_DIR)/$(TARGET_UPDATE).exe
+# TARGET_UPDATE_WINDOWS_AMD64 := $(WINDOWS_AMD64_DIR)/$(TARGET_UPDATE).exe
 
 MACOS_ARM64_DIR      := $(BIN_DIR)/macos-arm64
 TARGET_MAIN_MACOS_ARM64   := $(MACOS_ARM64_DIR)/$(TARGET_MAIN)
-TARGET_UPDATE_MACOS_ARM64   := $(MACOS_ARM64_DIR)/$(TARGET_UPDATE)
+# TARGET_UPDATE_MACOS_ARM64   := $(MACOS_ARM64_DIR)/$(TARGET_UPDATE)
 
 PACKAGE_LINUX_AMD64   := $(PACKAGE_DIR)/$(PROJ_NAME)-linux-amd64.tar.gz
 PACKAGE_WINDOWS_AMD64 := $(PACKAGE_DIR)/$(PROJ_NAME)-windows-amd64.zip
@@ -55,37 +55,37 @@ default: build
 build: | $(BIN_DIR)
 	@echo "[INFO] building native $(PROJ_NAME)"
 	@cd $(TARGET_MAIN_DIR) && $(GO) build $(GO_LDFLAGS) -o $(TARGET_NATIVE) .
-	@echo "[INFO] building native $(TARGET_UPDATE)"
-	@cd $(TARGET_UPDATE_DIR) && $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_NATIVE) .
 	@echo "[INFO] finish building $(PROJ_NAME): $(TARGET_NATIVE)"
-	@echo "[INFO] finish building $(TARGET_UPDATE): $(TARGET_UPDATE_NATIVE)"
+# 	@echo "[INFO] building native $(TARGET_UPDATE)"
+# 	@cd $(TARGET_UPDATE_DIR) && $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_NATIVE) .
+# 	@echo "[INFO] finish building $(TARGET_UPDATE): $(TARGET_UPDATE_NATIVE)"
 
 # 编译linux amd64可执行文件
 linux-amd64: | $(LINUX_AMD64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for linux/amd64"
 	@cd $(TARGET_MAIN_DIR) && GOOS=linux GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_LINUX_AMD64) .
-	@echo "[INFO] building $(TARGET_UPDATE) for linux/amd64"
-	@cd $(TARGET_UPDATE_DIR) && GOOS=linux GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_LINUX_AMD64) .
 	@echo "[INFO] finish: $(TARGET_MAIN_LINUX_AMD64)"
-	@echo "[INFO] finish: $(TARGET_UPDATE_LINUX_AMD64)"
+# 	@echo "[INFO] building $(TARGET_UPDATE) for linux/amd64"
+# 	@cd $(TARGET_UPDATE_DIR) && GOOS=linux GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_LINUX_AMD64) .
+# 	@echo "[INFO] finish: $(TARGET_UPDATE_LINUX_AMD64)"
 
 # 编译windows amd64 可执行文件
 windows-amd64: | $(WINDOWS_AMD64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for windows/amd64"
 	@cd $(TARGET_MAIN_DIR) && GOOS=windows GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_WINDOWS_AMD64) .
-	@echo "[INFO] building $(TARGET_UPDATE) for windows/amd64"
-	@cd $(TARGET_UPDATE_DIR) && GOOS=windows GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_WINDOWS_AMD64) .
 	@echo "[INFO] finish: $(TARGET_MAIN_WINDOWS_AMD64)"
-	@echo "[INFO] finish: $(TARGET_UPDATE_WINDOWS_AMD64)"
+# 	@echo "[INFO] building $(TARGET_UPDATE) for windows/amd64"
+# 	@cd $(TARGET_UPDATE_DIR) && GOOS=windows GOARCH=amd64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_WINDOWS_AMD64) .
+# 	@echo "[INFO] finish: $(TARGET_UPDATE_WINDOWS_AMD64)"
 
 # 编译 macOS Apple Silicon 可执行文件
 macos-arm64: | $(MACOS_ARM64_DIR)
 	@echo "[INFO] building $(PROJ_NAME) for darwin/arm64"
 	@cd $(TARGET_MAIN_DIR) && GOOS=darwin GOARCH=arm64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_MAIN_MACOS_ARM64) .
-	@echo "[INFO] building $(TARGET_UPDATE) for darwin/arm64"
-	@cd $(TARGET_UPDATE_DIR) && GOOS=darwin GOARCH=arm64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_MACOS_ARM64) .
 	@echo "[INFO] finish: $(TARGET_MAIN_MACOS_ARM64)"
-	@echo "[INFO] finish: $(TARGET_UPDATE_MACOS_ARM64)"
+# 	@echo "[INFO] building $(TARGET_UPDATE) for darwin/arm64"
+# 	@cd $(TARGET_UPDATE_DIR) && GOOS=darwin GOARCH=arm64 $(GO) build $(GO_LDFLAGS) -o $(TARGET_UPDATE_MACOS_ARM64) .
+# 	@echo "[INFO] finish: $(TARGET_UPDATE_MACOS_ARM64)"
 
 # 打包 linux amd64 release
 package-linux-amd64: linux-amd64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
@@ -93,7 +93,7 @@ package-linux-amd64: linux-amd64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64
 	@install -m 755 $(TARGET_MAIN_LINUX_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/$(PROJ_NAME)
-	@install -m 755 $(TARGET_UPDATE_LINUX_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/$(TARGET_UPDATE)
+# 	@install -m 755 $(TARGET_UPDATE_LINUX_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/$(TARGET_UPDATE)
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-linux-amd64/config.yaml
 	@tar -C $(PACKAGE_STAGING_DIR) -czf $(PACKAGE_LINUX_AMD64) $(PROJ_NAME)-linux-amd64
@@ -109,7 +109,7 @@ package-windows-amd64: windows-amd64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64
 	@install -m 755 $(TARGET_MAIN_WINDOWS_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/$(PROJ_NAME).exe
-	@install -m 755 $(TARGET_UPDATE_WINDOWS_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/$(TARGET_UPDATE).exe
+# 	@install -m 755 $(TARGET_UPDATE_WINDOWS_AMD64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/$(TARGET_UPDATE).exe
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-windows-amd64/config.yaml
 	@cd $(PACKAGE_STAGING_DIR) && zip -qr $(abspath $(PACKAGE_WINDOWS_AMD64)) $(PROJ_NAME)-windows-amd64
@@ -121,7 +121,7 @@ package-macos-arm64: macos-arm64 | $(PACKAGE_DIR) $(PACKAGE_STAGING_DIR)
 	@rm -rf $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64
 	@mkdir -p $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64
 	@install -m 755 $(TARGET_MAIN_MACOS_ARM64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/$(PROJ_NAME)
-	@install -m 755 $(TARGET_UPDATE_MACOS_ARM64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/$(TARGET_UPDATE)
+# 	@install -m 755 $(TARGET_UPDATE_MACOS_ARM64) $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/$(TARGET_UPDATE)
 	@install -m 644 $(ROOT_DIR)/system_prompt.md $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/system_prompt.md
 	@install -m 644 $(ROOT_DIR)/config-example.yaml $(PACKAGE_STAGING_DIR)/$(PROJ_NAME)-macos-arm64/config.yaml
 	@tar -C $(PACKAGE_STAGING_DIR) -czf $(PACKAGE_MACOS_ARM64) $(PROJ_NAME)-macos-arm64

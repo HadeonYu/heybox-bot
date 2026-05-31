@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"heybox-bot/update"
 	"os"
+	"time"
 )
 
 func main() {
 	result, err := update.Check()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Printf("检查更新失败：%v\n", err)
 		os.Exit(1)
 	}
 
@@ -25,5 +26,13 @@ func main() {
 		return
 	}
 
-	fmt.Println("已是最新版本")
+	countdownExit(3, "已是最新版本")
+}
+
+func countdownExit(second int, content string) {
+	for sec := second; sec > 0; sec-- {
+		fmt.Printf("\r%s，%ds 后退出", content, sec)
+		time.Sleep(time.Second)
+	}
+	fmt.Println("")
 }

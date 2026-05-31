@@ -9,7 +9,6 @@ import (
 	"heybox-bot/llm"
 	"heybox-bot/logger"
 	"heybox-bot/metadata"
-	"heybox-bot/update"
 	"os"
 	"os/signal"
 	"syscall"
@@ -73,17 +72,17 @@ func main() {
 }
 
 func logVersion() {
-	result, err := update.CheckWithCurrentVersion(Version)
-	if err != nil {
-		logger.Warn("检查更新失败: %v", err)
-		logger.Info("heybox-bot 版本：%s", Version)
-		return
-	}
+	// result, err := update.CheckWithCurrentVersion(Version)
+	// if err != nil {
+	// 	logger.Warn("检查更新失败: %v", err)
+	// 	logger.Info("heybox-bot 版本：%s", Version)
+	// 	return
+	// }
 
-	if result.NeedUpdate {
-		logger.Info("heybox-bot 版本：%s，发现新版本：%s", Version, result.LatestVersion)
-		return
-	}
+	// if result.NeedUpdate {
+	// 	logger.Info("heybox-bot 版本：%s，发现新版本：%s", Version, result.LatestVersion)
+	// 	return
+	// }
 
 	logger.Info("heybox-bot 版本：%s", Version)
 }
